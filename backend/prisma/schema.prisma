@@ -1,0 +1,126 @@
+// Prisma schema for Board Game Platform
+// Database for user management, game state, and move history
+
+datasource db {
+  provider = "postgresql"  // or sqlite for development
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User accounts
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String   // Hash, never store plain text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  gamesAsPlayer1 Game[] @relation("Player1")
+  gamesAsPlayer2 Game[] @relation("Player2")
+  friends        User[] @relation("Friendship")
+  friendOf       User[] @relation("Friendship")
+  
+  @@index([username])
+}
+
+// Game records (supports multiple game types)
+model Game {
+  id        String   @id @default(cuid())
+  gameType  String   // "connect-four", "chess", "checkers", "go"
+  status    String   // "ongoing", "finished", "abandoned"
+  result    String?  // "player1_wins", "player2_wins", "draw"
+  
+  player1Id String
+  player1   User     @relation("Player1", fields: [player1Id], references: [id])
+  
+  player2Id String?
+  player2   User?    @relation("Player2", fields: [player2Id], references: [id])
+  
+  // For AI games: player2Id is null, isAgainstAI = true
+  isAgainstAI Boolean @default(false)
+  aiDifficulty String? // "easy", "medium", "hard"
+  
+  // Initial board state (JSON)
+  initialState String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  moves Move[]
+  
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([gameType])
+  @@index([status])
+}
+
+// Move history
+model Move {
+  id      String @id @default(cuid())
+  gameId  String
+  game    Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  moveNumber Int
+  playerId   String
+  
+  // Game-specific move data (JSON format)
+  // For Connect Four: { "column": 3 }
+  // For Chess: { "from": "e2", "to": "e4" }
+  moveData   String
+  
+  // Board state after move
+  boardState String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([gameId])
+  @@unique([gameId, moveNumber])
+}
+
+// Game invitations
+model Invitation {
+  id        String   @id @default(cuid())
+  fromUserId String
+  toUserId  String
+  
+  gameType  String   // Type of game being proposed
+  status    String   // "pending", "accepted", "declined"
+  
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  // Optionally link to accepted game
+  gameId    String?
+  
+  @@index([toUserId])
+  @@index([fromUserId])
+}
+
+// Game statistics
+model UserStats {
+  id      String @id @default(cuid())
+  userId  String @unique
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gameType String // "connect-four", etc.
+  
+  gamesPlayed   Int @default(0)
+  gamesWon      Int @default(0)
+  gamesLost     Int @default(0)
+  gamesDraw     Int @default(0)
+  
+  winRate       Float @default(0.0)
+  eloRating     Float @default(1200.0)
+  
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, gameType])
+  @@index([eloRating])
+}
