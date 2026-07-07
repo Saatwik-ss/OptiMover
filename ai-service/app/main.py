@@ -32,7 +32,7 @@ app_state = AppState()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Starting AI Service...")
+    logger.info("Starting AI Service")
     
     # Determine device
     app_state.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,14 +43,14 @@ async def lifespan(app: FastAPI):
     
     if not Path(model_path).exists():
         logger.warning(f"Model not found at {model_path}. Initializing new model.")
-        app_state.c4_model = ConnectFourCNN(input_channels=1, board_height=6, board_width=7)
+        app_state.c4_model = ConnectFourCNN()
     else:
         try:
-            app_state.c4_model = ConnectFourCNN(input_channels=1, board_height=6, board_width=7)
+            app_state.c4_model = ConnectFourCNN()
             app_state.c4_model.load_state_dict(torch.load(model_path, map_location=app_state.device))
-            logger.info(f"✅ Loaded Connect Four model from {model_path}")
+            logger.info(f"Loaded Connect Four model from {model_path}")
         except Exception as e:
-            logger.error(f"❌ Failed to load model: {e}")
+            logger.error(f" Failed to load model: {e}")
             raise
     
     app_state.c4_model.to(app_state.device)
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down AI Service...")
+    logger.info("Shutting down AI Service")
     app_state.c4_model = None
 
 # Create FastAPI app

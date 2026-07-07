@@ -2,10 +2,10 @@
  * Connect Four Socket.IO Handler
  * Manages real-time game state and move validation via WebSockets
  */
-
 import { Socket, Server } from "socket.io";
-import { Connect4Engine } from "./Connect4Engine";
-import AIServiceClient from "./AIServiceClient";
+import { Connect4Engine } from "../models/Connect4Engine.js";
+// 2. Added the relative path indicator "./" and the .js extension
+import AIServiceClient from "../services/AIServiceClient.js"; 
 import { v4 as uuidv4 } from "uuid";
 
 export interface ConnectFourGame {

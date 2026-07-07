@@ -14,8 +14,10 @@ import { PrismaClient } from "@prisma/client";
 dotenv.config();
 
 // Import socket handlers
-import { setupConnectFourSocket } from "./socket/connectFourSocket";
-import AIServiceClient from "./services/aiService";
+import { setupConnectFourSocket } from "./socket/ConnectFourSocket.js";
+
+// 2. Fixed to match 'AIServiceClient' + added .js
+import AIServiceClient from "./services/AIServiceClient.js";
 
 // Initialize
 const app = express();
