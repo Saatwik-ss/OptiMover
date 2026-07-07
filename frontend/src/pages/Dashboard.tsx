@@ -3,10 +3,11 @@
  * Main landing page with game options and login
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSocket } from "../hooks/useSocket";
+import { fetchUserStats } from "../lib/api";
 import Button from "../components/Button";
 import { 
   Gamepad2, 
@@ -20,22 +21,49 @@ import {
   User, 
   Lock,
   Play,
-  Info
+  Info,
+  Mail,
+  Users,
+  Link2
 } from "lucide-react";
 
 export default function Dashboard() {
-  const { isAuthenticated, user, login } = useAuth();
-  const { createGame } = useSocket();
+  const { isAuthenticated, user, login, register } = useAuth();
+  const { createGame, joinGame } = useSocket();
   const navigate = useNavigate();
+
+  // Auth form mode
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   // Login state
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Game creation state
   const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [isHostingMultiplayer, setIsHostingMultiplayer] = useState(false);
+  const [joinGameId, setJoinGameId] = useState("");
+  const [isJoiningGame, setIsJoiningGame] = useState(false);
+  const [joinError, setJoinError] = useState("");
+  const [stats, setStats] = useState({
+    gamesPlayed: 0,
+    gamesWon: 0,
+    winRate: 0,
+    eloRating: 1200,
+  });
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetchUserStats(user.id, "connect-four")
+      .then(setStats)
+      .catch(() => {
+        // Keep defaults when no stats exist yet
+      });
+  }, [user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +71,7 @@ export default function Dashboard() {
       setLoginError("");
       setIsLoggingIn(true);
       await login(username, password);
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -50,19 +79,88 @@ export default function Dashboard() {
     }
   };
 
-const handlePlayVsAI = async () => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoginError("");
+      setIsLoggingIn(true);
+      await register(username, email, password);
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Registration failed");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handlePlayVsAI = async () => {
     if (!user) return;
 
     try {
       setIsCreatingGame(true);
-      const response = await createGame(user.id, true);
-      
-      navigate(`/game/${response}`); 
-    
+      const response = (await createGame(user.id, true)) as {
+        gameId: string;
+        initialState: { board: number[][] };
+      };
+
+      navigate(`/game/${response.gameId}`, {
+        state: { initialState: response.initialState, isVsAI: true },
+      });
     } catch (error) {
-      console.error("Failed to create game: Sorry", error);
+      console.error("Failed to create game:", error);
     } finally {
       setIsCreatingGame(false);
+    }
+  };
+
+  const handleHostMultiplayer = async () => {
+    if (!user) return;
+
+    try {
+      setIsHostingMultiplayer(true);
+      const response = (await createGame(user.id, false)) as {
+        gameId: string;
+        initialState: { board: number[][] };
+      };
+
+      navigate(`/game/${response.gameId}`, {
+        state: {
+          initialState: response.initialState,
+          isVsAI: false,
+          isHost: true,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to host game:", error);
+    } finally {
+      setIsHostingMultiplayer(false);
+    }
+  };
+
+  const handleJoinMultiplayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !joinGameId.trim()) return;
+
+    try {
+      setJoinError("");
+      setIsJoiningGame(true);
+      const gameId = joinGameId.trim();
+      const response = (await joinGame(gameId, user.id)) as {
+        gameId: string;
+        initialState: { board: number[][] };
+      };
+
+      navigate(`/game/${response.gameId}`, {
+        state: {
+          initialState: response.initialState,
+          isVsAI: false,
+          isHost: false,
+        },
+      });
+    } catch (error) {
+      setJoinError(error instanceof Error ? error.message : "Failed to join game");
+    } finally {
+      setIsJoiningGame(false);
     }
   };
   // Not logged in - show login form
@@ -83,7 +181,32 @@ const handlePlayVsAI = async () => {
 
           {/* Login Form */}
           <div className="bg-zinc-950/50 backdrop-blur-xl rounded-2xl border border-white/5 p-8 shadow-2xl">
-            <form onSubmit={handleLogin} className="space-y-5">
+            <div className="flex gap-2 mb-6 p-1 bg-zinc-900/50 rounded-xl border border-white/5">
+              <button
+                type="button"
+                onClick={() => { setAuthMode("login"); setLoginError(""); }}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                  authMode === "login"
+                    ? "bg-indigo-600 text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode("register"); setLoginError(""); }}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                  authMode === "register"
+                    ? "bg-indigo-600 text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
+            <form onSubmit={authMode === "login" ? handleLogin : handleRegister} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Username</label>
                 <div className="relative">
@@ -100,6 +223,25 @@ const handlePlayVsAI = async () => {
                   />
                 </div>
               </div>
+
+              {authMode === "register" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Email</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-zinc-500" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/50 border border-white/10 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all sm:text-sm"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Password</label>
@@ -130,7 +272,13 @@ const handlePlayVsAI = async () => {
                 disabled={isLoggingIn}
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 font-medium shadow-[0_0_20px_rgba(79,70,229,0.2)] hover:shadow-[0_0_25px_rgba(79,70,229,0.4)] transition-all mt-2"
               >
-                {isLoggingIn ? "Authenticating..." : "Sign In"}
+                {isLoggingIn
+                  ? authMode === "login"
+                    ? "Authenticating..."
+                    : "Creating account..."
+                  : authMode === "login"
+                    ? "Sign In"
+                    : "Create Account"}
               </Button>
             </form>
 
@@ -161,10 +309,7 @@ const handlePlayVsAI = async () => {
             </h1>
             <p className="text-zinc-500 text-sm">Select a module to initiate a new session.</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-400 bg-zinc-900/50 border border-white/5 px-4 py-2 rounded-full backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            System Online
-          </div>
+
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -204,14 +349,53 @@ const handlePlayVsAI = async () => {
                   </span>
                 </div>
 
-                <Button
-                  onClick={handlePlayVsAI}
-                  disabled={isCreatingGame}
-                  className="w-full sm:w-auto flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl px-6 py-2.5 font-medium transition-all"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  {isCreatingGame ? "Initializing..." : "Commence Match"}
-                </Button>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    onClick={handlePlayVsAI}
+                    disabled={isCreatingGame || isHostingMultiplayer}
+                    className="flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl px-6 py-2.5 font-medium transition-all"
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    {isCreatingGame ? "Initializing..." : "Play vs AI"}
+                  </Button>
+                  <Button
+                    onClick={handleHostMultiplayer}
+                    disabled={isHostingMultiplayer || isCreatingGame}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-6 py-2.5 font-medium transition-all"
+                  >
+                    <Users className="w-4 h-4" />
+                    {isHostingMultiplayer ? "Creating..." : "Host Multiplayer"}
+                  </Button>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-white/5">
+                  <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Link2 className="w-3.5 h-3.5" />
+                    Join a Friend&apos;s Game
+                  </p>
+                  <form onSubmit={handleJoinMultiplayer} className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={joinGameId}
+                      onChange={(e) => setJoinGameId(e.target.value)}
+                      placeholder="Paste game ID from host"
+                      className="flex-1 px-4 py-2.5 bg-zinc-900/50 border border-white/10 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 text-sm font-mono"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isJoiningGame || !joinGameId.trim()}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl px-5 py-2.5 font-medium"
+                    >
+                      {isJoiningGame ? "Joining..." : "Join Game"}
+                    </Button>
+                  </form>
+                  {joinError && (
+                    <p className="mt-2 text-sm text-rose-400">{joinError}</p>
+                  )}
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Host shares their game ID after clicking &quot;Host Multiplayer&quot;.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -228,10 +412,10 @@ const handlePlayVsAI = async () => {
             <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider px-2">Performance Metrics</h3>
             
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-              <StatCard icon={Trophy} label="Matches Played" value="12" />
-              <StatCard icon={Medal} label="Victories" value="8" valueColor="text-emerald-400" />
-              <StatCard icon={TrendingUp} label="Win Ratio" value="66.6%" valueColor="text-indigo-400" />
-              <StatCard icon={Activity} label="ELO Rating" value="1450" valueColor="text-amber-400" />
+              <StatCard icon={Trophy} label="Matches Played" value={stats.gamesPlayed.toString()} />
+              <StatCard icon={Medal} label="Victories" value={stats.gamesWon.toString()} valueColor="text-emerald-400" />
+              <StatCard icon={TrendingUp} label="Win Ratio" value={`${Math.round(stats.winRate)}%`} valueColor="text-indigo-400" />
+              <StatCard icon={Activity} label="ELO Rating" value={Math.round(stats.eloRating).toString()} valueColor="text-amber-400" />
             </div>
           </div>
 

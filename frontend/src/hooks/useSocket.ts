@@ -14,12 +14,12 @@ export interface GameMove {
 
 export interface GameEvent {
   gameId: string;
-  gameState: number[][];
+  gameState: number[][] | { board: number[][]; moveCount?: number; currentPlayer?: number };
   move?: GameMove;
   playerId?: string;
   status?: {
     status: "ongoing" | "finished";
-    result?: "player1_wins" | "player2_wins" | "draw";
+    result?: "player1_wins" | "player2_wins" | "draw" | "ai_wins";
     winner?: number;
   };
 }
@@ -30,44 +30,46 @@ export function useSocket() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Reuse global socket if available
-    if (globalSocket) {
-      socketRef.current = globalSocket;
-      setIsConnected(globalSocket.connected);
-      return;
+    if (!globalSocket) {
+      globalSocket = io(import.meta.env.VITE_API_URL || "http://localhost:4000", {
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+        transports: ["websocket", "polling"],
+      });
     }
 
-    // Create new socket connection
-    const socket = io(import.meta.env.VITE_API_URL || "http://localhost:4000", {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ["websocket", "polling"],
-    });
-
+    const socket = globalSocket;
     socketRef.current = socket;
-    globalSocket = socket;
 
-    socket.on("connect", () => {
+    const onConnect = () => {
       console.log("Socket connected:", socket.id);
       setIsConnected(true);
       setError(null);
-    });
+    };
 
-    socket.on("disconnect", () => {
+    const onDisconnect = () => {
       console.log("Socket disconnected");
       setIsConnected(false);
-    });
+    };
 
-    socket.on("connect_error", (error) => {
-      console.error("Socket error:", error);
-      setError(String(error));
-    });
+    const onConnectError = (err: Error) => {
+      console.error("Socket error:", err);
+      setError(String(err));
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
+
+    // Sync immediately (important when reusing socket after Strict Mode remount)
+    setIsConnected(socket.connected);
 
     return () => {
-      // Don't disconnect - keep connection alive
-      // socket.disconnect();
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onConnectError);
     };
   }, []);
 

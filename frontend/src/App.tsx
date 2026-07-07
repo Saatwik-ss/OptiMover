@@ -14,7 +14,15 @@ import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
   const { isConnected } = useSocket();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-chessboard flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -41,7 +49,7 @@ export default function App() {
             {!isAuthenticated ? (
               <>
                 <Route path="/login" element={<Dashboard />} />
-                <Route path="*" element={<Navigate to="/login" />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
               </>
             ) : (
               <>
@@ -49,7 +57,9 @@ export default function App() {
                 <Route path="/game/:gameId" element={<ConnectFourGame />} />
                 <Route path="/game/connect-four/:gameId" element={<ConnectFourGame />} />
                 <Route path="/history" element={<GameHistory />} />
-                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </>
             )}
           </Routes>

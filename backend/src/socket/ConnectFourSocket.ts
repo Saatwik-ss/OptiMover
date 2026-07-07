@@ -3,9 +3,10 @@
  * Manages real-time game state and move validation via WebSockets
  */
 import { Socket, Server } from "socket.io";
+import { PrismaClient } from "@prisma/client";
 import { Connect4Engine } from "../models/Connect4Engine.js";
-// 2. Added the relative path indicator "./" and the .js extension
-import AIServiceClient from "../services/AIServiceClient.js"; 
+import AIServiceClient from "../services/AIServiceClient.js";
+import { saveFinishedGame, normalizeConnectFourResult } from "../services/GameRecordService.js";
 import { v4 as uuidv4 } from "uuid";
 
 export interface ConnectFourGame {
@@ -22,7 +23,8 @@ const activeGames: Map<string, ConnectFourGame> = new Map();
 
 export function setupConnectFourSocket(
   io: Server,
-  aiClient: AIServiceClient
+  aiClient: AIServiceClient,
+  prisma: PrismaClient
 ) {
   io.on("connection", (socket: Socket) => {
     console.log(`[Connect Four] User connected: ${socket.id}`);
@@ -127,15 +129,14 @@ export function setupConnectFourSocket(
 
         callback({ success: true });
 
-        // If AI game and still ongoing, AI makes its move
-        if (
+        if (status.status === "finished") {
+          await finishGame(io, prisma, game, status.result!);
+        } else if (
           isAIGame &&
-          status.status === "ongoing" &&
-          game.gameState.currentPlayer === 2 // AI's turn
+          game.gameState.currentPlayer === 2
         ) {
-          // Defer AI move slightly to feel natural
           setTimeout(() => {
-            makeAIMove(io, game, gameId, aiClient);
+            makeAIMove(io, game, gameId, aiClient, prisma);
           }, 500);
         }
       } catch (error) {
@@ -171,7 +172,11 @@ export function setupConnectFourSocket(
             gameState: game.engine.serialize(game.gameState),
           });
 
-          callback({ success: true, gameId });
+          callback({
+            success: true,
+            gameId,
+            initialState: game.engine.serialize(game.gameState),
+          });
         } else {
           callback({ error: "Game is full" });
         }
@@ -182,7 +187,7 @@ export function setupConnectFourSocket(
     });
 
     // Resign from game
-    socket.on("resign", (payload, callback) => {
+    socket.on("resign", async (payload, callback) => {
       try {
         const { gameId, playerId } = payload;
         const game = activeGames.get(gameId);
@@ -192,16 +197,7 @@ export function setupConnectFourSocket(
           return;
         }
 
-        const winner =
-          playerId === game.player1Id ? game.player2Id || "AI" : game.player1Id;
-
-        io.to(`game:${gameId}`).emit("game-ended", {
-          gameId,
-          result: "resignation",
-          winner,
-        });
-
-        activeGames.delete(gameId);
+        await finishGame(io, prisma, game, "resignation", playerId);
         callback({ success: true });
       } catch (error) {
         console.error("Error resigning:", error);
@@ -215,6 +211,44 @@ export function setupConnectFourSocket(
   });
 }
 
+async function finishGame(
+  io: Server,
+  prisma: PrismaClient,
+  game: ConnectFourGame,
+  result: string,
+  resignedBy?: string
+) {
+  const normalized = normalizeConnectFourResult(
+    result,
+    game.isAgainstAI,
+    game.player1Id,
+    resignedBy
+  );
+
+  io.to(`game:${game.gameId}`).emit("game-ended", {
+    gameId: game.gameId,
+    result: normalized,
+    winner:
+      normalized === "player1_wins"
+        ? game.player1Id
+        : normalized === "ai_wins"
+          ? "AI"
+          : game.player2Id || "AI",
+  });
+
+  await saveFinishedGame(prisma, {
+    gameId: game.gameId,
+    gameType: "connect-four",
+    player1Id: game.player1Id,
+    player2Id: game.player2Id,
+    isAgainstAI: game.isAgainstAI,
+    result,
+    resignedBy,
+  });
+
+  setTimeout(() => activeGames.delete(game.gameId), 60000);
+}
+
 /**
  * Make AI move
  */
@@ -222,7 +256,8 @@ async function makeAIMove(
   io: Server,
   game: ConnectFourGame,
   gameId: string,
-  aiClient: AIServiceClient
+  aiClient: AIServiceClient,
+  prisma: PrismaClient
 ) {
   try {
     const boardData = game.gameState.board;
@@ -256,17 +291,8 @@ async function makeAIMove(
       status,
     });
 
-    // If game ended, cleanup
     if (status.status === "finished") {
-      const result_msg = {
-        gameId,
-        result: status.result,
-        winner: status.winner === 1 ? game.player1Id : "AI",
-      };
-
-      io.to(`game:${gameId}`).emit("game-ended", result_msg);
-      // Keep game in memory for a bit for replay, then cleanup
-      setTimeout(() => activeGames.delete(gameId), 60000);
+      await finishGame(io, prisma, game, status.result!);
     }
   } catch (error) {
     console.error("[AI] Error getting move:", error);

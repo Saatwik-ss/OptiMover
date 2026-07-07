@@ -3,7 +3,7 @@
  * Game board UI with column selection and piece animation
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import classNames from "classnames";
 
 export interface Connect4BoardProps {
@@ -13,6 +13,9 @@ export interface Connect4BoardProps {
   isAIThinking?: boolean;
 }
 
+const ROWS = 6;
+const COLS = 7;
+
 export default function Connect4Board({
   board,
   onColumnClick,
@@ -20,124 +23,121 @@ export default function Connect4Board({
   isAIThinking = false,
 }: Connect4BoardProps) {
   const [highlightColumn, setHighlightColumn] = useState<number | null>(null);
-  const [dropAnimation, setDropAnimation] = useState<{ col: number; row: number } | null>(
-    null
-  );
-
-  const ROWS = 6;
-  const COLS = 7;
-
-  const handleColumnHover = (col: number) => {
-    if (!disabled && !isAIThinking) {
-      setHighlightColumn(col);
-    }
-  };
+  const canPlay = !disabled && !isAIThinking;
 
   const handleColumnClick = (col: number) => {
-    if (disabled || isAIThinking) return;
+    if (!canPlay) return;
 
-    // Find where piece would land
-    let landRow = -1;
-    for (let row = ROWS - 1; row >= 0; row--) {
-      if (board[row][col] === 0) {
-        landRow = row;
-        break;
-      }
-    }
+    // Column is full if top row is occupied
+    if (board[0]?.[col] !== 0) return;
 
-    if (landRow >= 0) {
-      setDropAnimation({ col, row: landRow });
-      setTimeout(() => {
-        onColumnClick(col);
-        setDropAnimation(null);
-      }, 300);
-    }
+    onColumnClick(col);
   };
 
+  const isColumnFull = (col: number) => board[0]?.[col] !== 0;
+
   return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Column indicators */}
-      <div className="flex gap-3">
+    <div className="flex flex-col items-center gap-4 w-full max-w-lg mx-auto">
+      <p className="text-sm text-zinc-400 text-center">
+        Click a column below to drop your{" "}
+        <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 align-middle" />{" "}
+        piece. Get four in a row to win.
+      </p>
+
+      {/* Column drop buttons */}
+      <div className="grid grid-cols-7 gap-2 w-full">
         {Array.from({ length: COLS }).map((_, col) => (
-          <div
-            key={`header-${col}`}
-            className="w-14 h-10 flex items-center justify-center text-slate-400 font-mono text-sm"
+          <button
+            key={`drop-${col}`}
+            type="button"
+            disabled={!canPlay || isColumnFull(col)}
+            className={classNames(
+              "h-10 rounded-lg font-mono text-sm font-medium transition-all",
+              "border border-white/10",
+              {
+                "bg-indigo-600/80 hover:bg-indigo-500 text-white cursor-pointer":
+                  canPlay && !isColumnFull(col),
+                "bg-zinc-800/50 text-zinc-600 cursor-not-allowed": isColumnFull(col),
+                "opacity-50 cursor-not-allowed": !canPlay && !isColumnFull(col),
+                "ring-2 ring-yellow-400/60 bg-indigo-500": highlightColumn === col && canPlay,
+              }
+            )}
+            onMouseEnter={() => canPlay && setHighlightColumn(col)}
+            onMouseLeave={() => setHighlightColumn(null)}
+            onClick={() => handleColumnClick(col)}
+            aria-label={`Drop piece in column ${col}`}
           >
             {col}
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Board */}
       <div
         className={classNames(
-          "relative bg-gradient-to-b from-blue-600 to-blue-700 rounded-xl p-3 shadow-2xl",
-          "grid gap-3",
-          { "opacity-60 cursor-not-allowed": disabled || isAIThinking }
+          "w-full rounded-2xl p-3 shadow-2xl",
+          "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30",
+          { "opacity-60": !canPlay }
         )}
-        style={{
-          gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`,
-          aspectRatio: `${COLS} / ${ROWS}`,
-        }}
       >
-        {/* Column click targets */}
-        {Array.from({ length: COLS }).map((_, col) => (
-          <button
-            key={`target-${col}`}
-            className={classNames(
-              "absolute top-0 h-12 cursor-pointer hover:bg-white/10 transition-colors",
-              { "bg-blue-400/20": highlightColumn === col && !disabled && !isAIThinking }
-            )}
-            style={{
-              left: `calc((100% / ${COLS}) * ${col})`,
-              width: `calc(100% / ${COLS})`,
-              pointerEvents: disabled || isAIThinking ? "none" : "auto",
-            }}
-            onMouseEnter={() => handleColumnHover(col)}
-            onMouseLeave={() => setHighlightColumn(null)}
-            onClick={() => handleColumnClick(col)}
-            aria-label={`Column ${col}`}
-          />
-        ))}
-
-        {/* Game pieces */}
-        {board.map((row, rowIdx) =>
-          row.map((piece, colIdx) => {
-            const isNewPiece = dropAnimation?.col === colIdx && dropAnimation?.row === rowIdx;
-            const key = `piece-${rowIdx}-${colIdx}`;
-
-            return (
-              <div
-                key={key}
+        <div className="grid grid-cols-7 gap-2">
+          {board.map((row, rowIdx) =>
+            row.map((piece, colIdx) => (
+              <button
+                key={`cell-${rowIdx}-${colIdx}`}
+                type="button"
+                disabled={!canPlay || isColumnFull(colIdx)}
                 className={classNames(
-                  "absolute rounded-full shadow-lg transition-all duration-300",
-                  "w-12 h-12 sm:w-14 sm:h-14",
+                  "aspect-square rounded-full transition-colors",
+                  "bg-slate-900/70 border border-blue-900/50",
+                  "flex items-center justify-center",
                   {
-                    "bg-yellow-400 shadow-yellow-400/50": piece === 1,
-                    "bg-red-500 shadow-red-500/50": piece === 2,
-                    "bg-slate-700/30": piece === 0,
-                  },
-                  { "animate-pulse scale-110": isNewPiece }
+                    "hover:bg-slate-800/80 cursor-pointer":
+                      canPlay && !isColumnFull(colIdx),
+                    "cursor-default": !canPlay || isColumnFull(colIdx),
+                    "ring-2 ring-yellow-400/40": highlightColumn === colIdx && canPlay,
+                  }
                 )}
-                style={{
-                  left: `calc((100% / ${COLS}) * ${colIdx} + (100% / ${COLS} - 3.5rem) / 2)`,
-                  top: `calc((100% / ${ROWS}) * ${rowIdx} + (100% / ${ROWS} - 3.5rem) / 2)`,
-                  transform: isNewPiece ? "translateY(-200px)" : "translateY(0)",
-                }}
-              />
-            );
-          })
-        )}
+                onClick={() => handleColumnClick(colIdx)}
+                onMouseEnter={() => canPlay && setHighlightColumn(colIdx)}
+                onMouseLeave={() => setHighlightColumn(null)}
+                aria-label={`Column ${colIdx}, row ${rowIdx}`}
+              >
+                {piece !== 0 && (
+                  <div
+                    className={classNames(
+                      "w-[88%] h-[88%] rounded-full shadow-lg",
+                      {
+                        "bg-yellow-400 shadow-yellow-400/40": piece === 1,
+                        "bg-red-500 shadow-red-500/40": piece === 2,
+                      }
+                    )}
+                  />
+                )}
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Status info */}
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 rounded-full bg-yellow-400" />
+          You
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 rounded-full bg-red-500" />
+          AI
+        </span>
+      </div>
+
       {isAIThinking && (
         <div className="flex items-center gap-2 text-blue-400">
           <div className="flex gap-1">
             <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-100" />
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-200" />
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.2s]" />
           </div>
           <span className="text-sm font-medium">AI is thinking...</span>
         </div>
@@ -145,19 +145,3 @@ export default function Connect4Board({
     </div>
   );
 }
-
-// Tailwind animation utilities (add to your CSS)
-const tailwindAnimations = `
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-
-  .delay-100 {
-    animation-delay: 0.1s;
-  }
-
-  .delay-200 {
-    animation-delay: 0.2s;
-  }
-`;

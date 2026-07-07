@@ -18,6 +18,7 @@ import { setupConnectFourSocket } from "./socket/ConnectFourSocket.js";
 
 // 2. Fixed to match 'AIServiceClient' + added .js
 import AIServiceClient from "./services/AIServiceClient.js";
+import { ensureDemoUser } from "./services/GameRecordService.js";
 
 // Initialize
 const app = express();
@@ -47,7 +48,7 @@ const io = new Server(httpServer, {
 });
 
 // Initialize game socket handlers
-setupConnectFourSocket(io, aiClient);
+setupConnectFourSocket(io, aiClient, prisma);
 
 // ==================== REST API Routes ====================
 
@@ -78,6 +79,31 @@ app.get("/api/ai-health", async (req, res) => {
 
 // ==================== User Routes ====================
 
+// Login (demo — plain-text password check)
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: "Missing username or password" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { username } });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    });
+  } catch (error) {
+    res.status(500).json({ error: String(error) });
+  }
+});
+
 // Create user (registration)
 app.post("/api/users/register", async (req, res) => {
   try {
@@ -100,9 +126,35 @@ app.post("/api/users/register", async (req, res) => {
     });
 
     res.json({
-      success: true,
-      userId: user.id,
+      id: user.id,
       username: user.username,
+      email: user.email,
+    });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Username or email already exists" });
+    }
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+// Alias for registration
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const user = await prisma.user.create({
+      data: { username, email, password },
+    });
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
     });
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -181,6 +233,7 @@ app.post("/api/games/result", async (req, res) => {
         status: "finished",
         player1Id,
         player2Id,
+        isAgainstAI: req.body.isAgainstAI ?? false,
       },
     });
 
@@ -207,7 +260,14 @@ app.get("/api/stats/:userId/:gameType", async (req, res) => {
     });
 
     if (!stats) {
-      return res.status(404).json({ error: "No statistics found" });
+      return res.json({
+        gamesPlayed: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        gamesDraw: 0,
+        winRate: 0,
+        eloRating: 1200,
+      });
     }
 
     res.json(stats);
@@ -249,6 +309,8 @@ httpServer.listen(PORT, async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     console.log(`✅ Database: Connected`);
+    await ensureDemoUser(prisma);
+    console.log(`✅ Demo user: player1 / demo`);
   } catch (error) {
     console.log("❌ Database: Failed to connect");
   }
