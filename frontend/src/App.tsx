@@ -1,10 +1,10 @@
 /**
  * Board Game Platform - React App
- * Main application component with routing and global state
  */
 
 import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { WifiOff } from "lucide-react";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import ConnectFourGame from "./pages/ConnectFourGame";
@@ -18,15 +18,22 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Replaced the blue gradient with the custom chessboard background */}
+      <div className="min-h-screen bg-chessboard flex flex-col font-sans selection:bg-indigo-500/30">
         <Navbar />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full flex-grow">
+          
+          {/* Upgraded Connection Alert Banner */}
           {!isConnected && (
-            <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
-              <p className="text-yellow-200 text-sm">
-                ⚠️ Connection to server lost. Attempting to reconnect...
-              </p>
+            <div className="mb-8 p-4 bg-rose-950/40 border border-rose-500/20 rounded-2xl flex items-center gap-4 backdrop-blur-md shadow-lg shadow-rose-900/10 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/20">
+                <WifiOff className="w-5 h-5 text-rose-400 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-rose-400 text-sm font-semibold tracking-wide">Connection Lost</p>
+                <p className="text-rose-500/80 text-xs mt-0.5 font-medium">Attempting to re-establish secure link to the server...</p>
+              </div>
             </div>
           )}
 

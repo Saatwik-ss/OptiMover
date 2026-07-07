@@ -11,29 +11,30 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "axios": "^1.6.2",
+    "classnames": "^2.3.2",
+    "lucide-react": "^1.23.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.7.2",
-    "axios": "^1.6.2",
-    "zustand": "^4.4.7",
     "react-router-dom": "^6.20.1",
-    "classnames": "^2.3.2"
+    "socket.io-client": "^4.7.2",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.2.15",
-    "@types/node": "^20.10.6",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.8",
-    "@vitejs/plugin-react": "^4.2.1",
-    "tailwindcss": "^3.4.1",
-    "postcss": "^8.4.32",
-    "autoprefixer": "^10.4.16",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
-    "eslint": "^8.56.0",
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
-    "@typescript-eslint/parser": "^6.17.0"
+    "@typescript-eslint/parser": "^6.17.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
   },
   "engines": {
     "node": ">=18.0.0",
