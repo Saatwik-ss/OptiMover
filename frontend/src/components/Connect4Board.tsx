@@ -11,9 +11,12 @@ export interface Connect4BoardProps {
   onColumnClick: (column: number) => void;
   disabled?: boolean;
   isAIThinking?: boolean;
+  playerPieceClass?: string;
+  opponentPieceClass?: string;
+  boardClass?: string;
+  opponentLabel?: string;
 }
 
-const ROWS = 6;
 const COLS = 7;
 
 export default function Connect4Board({
@@ -21,6 +24,10 @@ export default function Connect4Board({
   onColumnClick,
   disabled = false,
   isAIThinking = false,
+  playerPieceClass = "bg-yellow-400",
+  opponentPieceClass = "bg-red-500",
+  boardClass = "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30",
+  opponentLabel = "AI",
 }: Connect4BoardProps) {
   const [highlightColumn, setHighlightColumn] = useState<number | null>(null);
   const canPlay = !disabled && !isAIThinking;
@@ -76,7 +83,7 @@ export default function Connect4Board({
       <div
         className={classNames(
           "w-full rounded-2xl p-3 shadow-2xl",
-          "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30",
+          boardClass,
           { "opacity-60": !canPlay }
         )}
       >
@@ -108,8 +115,8 @@ export default function Connect4Board({
                     className={classNames(
                       "w-[88%] h-[88%] rounded-full shadow-lg",
                       {
-                        "bg-yellow-400 shadow-yellow-400/40": piece === 1,
-                        "bg-red-500 shadow-red-500/40": piece === 2,
+                        [playerPieceClass + " shadow-yellow-400/40"]: piece === 1,
+                        [opponentPieceClass + " shadow-red-500/40"]: piece === 2,
                       }
                     )}
                   />
@@ -121,16 +128,16 @@ export default function Connect4Board({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
-        <span className="flex items-center gap-2">
-          <span className="w-4 h-4 rounded-full bg-yellow-400" />
-          You
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-4 h-4 rounded-full bg-red-500" />
-          AI
-        </span>
-      </div>
+        <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
+          <span className="flex items-center gap-2">
+            <span className={`w-4 h-4 rounded-full ${playerPieceClass}`} />
+            You
+          </span>
+          <span className="flex items-center gap-2">
+            <span className={`w-4 h-4 rounded-full ${opponentPieceClass}`} />
+            {opponentLabel}
+          </span>
+        </div>
 
       {isAIThinking && (
         <div className="flex items-center gap-2 text-blue-400">

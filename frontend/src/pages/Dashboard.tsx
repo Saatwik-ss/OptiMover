@@ -9,6 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useSocket } from "../hooks/useSocket";
 import { fetchUserStats } from "../lib/api";
 import Button from "../components/Button";
+import GameOptionsModal, { GameOptions } from "../components/GameOptionsModal";
 import { 
   Gamepad2, 
   Cpu, 
@@ -93,32 +94,25 @@ export default function Dashboard() {
     }
   };
 
-  const handlePlayVsAI = async () => {
+  // New: options modal state
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [optionsForAI, setOptionsForAI] = useState<boolean>(true);
+
+  const openOptions = (forAI: boolean) => {
+    setOptionsForAI(forAI);
+    setOptionsOpen(true);
+  };
+
+  const handleStartWithOptions = async (opts: GameOptions) => {
+    setOptionsOpen(false);
     if (!user) return;
 
     try {
       setIsCreatingGame(true);
-      const response = (await createGame(user.id, true)) as {
-        gameId: string;
-        initialState: { board: number[][] };
-      };
-
-      navigate(`/game/${response.gameId}`, {
-        state: { initialState: response.initialState, isVsAI: true },
-      });
-    } catch (error) {
-      console.error("Failed to create game:", error);
-    } finally {
-      setIsCreatingGame(false);
-    }
-  };
-
-  const handleHostMultiplayer = async () => {
-    if (!user) return;
-
-    try {
-      setIsHostingMultiplayer(true);
-      const response = (await createGame(user.id, false)) as {
+      if (!optionsForAI) {
+        setIsHostingMultiplayer(true);
+      }
+      const response = (await createGame(user.id, optionsForAI, opts)) as {
         gameId: string;
         initialState: { board: number[][] };
       };
@@ -126,13 +120,15 @@ export default function Dashboard() {
       navigate(`/game/${response.gameId}`, {
         state: {
           initialState: response.initialState,
-          isVsAI: false,
+          isVsAI: optionsForAI,
           isHost: true,
+          options: opts,
         },
       });
     } catch (error) {
-      console.error("Failed to host game:", error);
+      console.error("Failed to create game:", error);
     } finally {
+      setIsCreatingGame(false);
       setIsHostingMultiplayer(false);
     }
   };
@@ -148,6 +144,7 @@ export default function Dashboard() {
       const response = (await joinGame(gameId, user.id)) as {
         gameId: string;
         initialState: { board: number[][] };
+        options?: any;
       };
 
       navigate(`/game/${response.gameId}`, {
@@ -155,6 +152,7 @@ export default function Dashboard() {
           initialState: response.initialState,
           isVsAI: false,
           isHost: false,
+          options: response.options || null,
         },
       });
     } catch (error) {
@@ -326,32 +324,17 @@ export default function Dashboard() {
                   <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center">
                     <Target className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">
-                    <Activity className="w-3 h-3" /> Ready
-                  </span>
+
                 </div>
 
                 <h2 className="text-2xl font-semibold tracking-tight text-zinc-100 mb-2">Connect Four</h2>
                 <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-md">
-                  Deploy strategy and tactical vertical placement. Challenge the neural network in a classic game of pattern recognition.
+                  Connect 4 pieces in a row(horizontal , vertical or diagonal) before your opponent does. Each piece drops and clears the first empty cell on the column you choose. 
                 </p>
-
-                {/* Features Tags */}
-                <div className="flex flex-wrap gap-2 mb-8">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-zinc-300 text-xs border border-white/5">
-                    <Cpu className="w-3.5 h-3.5 text-zinc-400" /> AI Opponent
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-zinc-300 text-xs border border-white/5">
-                    <Gamepad2 className="w-3.5 h-3.5 text-zinc-400" /> Real-time
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-zinc-300 text-xs border border-white/5">
-                    <History className="w-3.5 h-3.5 text-zinc-400" /> Analytics Logged
-                  </span>
-                </div>
 
                 <div className="flex flex-wrap gap-3">
                   <Button
-                    onClick={handlePlayVsAI}
+                    onClick={() => openOptions(true)}
                     disabled={isCreatingGame || isHostingMultiplayer}
                     className="flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 rounded-xl px-6 py-2.5 font-medium transition-all"
                   >
@@ -359,7 +342,7 @@ export default function Dashboard() {
                     {isCreatingGame ? "Initializing..." : "Play vs AI"}
                   </Button>
                   <Button
-                    onClick={handleHostMultiplayer}
+                    onClick={() => openOptions(false)}
                     disabled={isHostingMultiplayer || isCreatingGame}
                     className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-6 py-2.5 font-medium transition-all"
                   >
@@ -367,6 +350,13 @@ export default function Dashboard() {
                     {isHostingMultiplayer ? "Creating..." : "Host Multiplayer"}
                   </Button>
                 </div>
+
+                <GameOptionsModal
+                  open={optionsOpen}
+                  vsAI={optionsForAI}
+                  onClose={() => setOptionsOpen(false)}
+                  onConfirm={handleStartWithOptions}
+                />
 
                 <div className="mt-6 pt-6 border-t border-white/5">
                   <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">

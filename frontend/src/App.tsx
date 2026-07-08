@@ -2,7 +2,6 @@
  * Board Game Platform - React App
  */
 
-import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { WifiOff } from "lucide-react";
 import Navbar from "./components/Navbar";

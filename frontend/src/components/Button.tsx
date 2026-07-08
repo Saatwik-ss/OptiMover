@@ -13,7 +13,6 @@ export interface ButtonProps {
   className?: string;
   type?: "button" | "submit" | "reset";
   size?: "sm" | "md" | "lg";
-  variant?: "primary" | "secondary" | "danger";
 }
 
 export default function Button({
@@ -23,7 +22,6 @@ export default function Button({
   className = "",
   type = "button",
   size = "md",
-  variant = "primary",
 }: ButtonProps) {
   return (
     <button

@@ -41,10 +41,11 @@ export class AIServiceClient {
   /**
    * Get AI's move for Connect Four
    */
-  async getConnectFourMove(board: number[][]): Promise<AIMove> {
+  async getConnectFourMove(board: number[][], options?: Record<string, any>): Promise<AIMove> {
     try {
       const response = await this.client.post<AIMove>("/api/games/connect-four/move", {
         board,
+        options: options || {},
       });
       return response.data;
     } catch (error) {

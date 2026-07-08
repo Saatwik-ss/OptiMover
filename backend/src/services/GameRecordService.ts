@@ -2,6 +2,7 @@
  * Persists finished games and updates per-user statistics.
  */
 import { PrismaClient } from "@prisma/client";
+import { prisma } from "..";
 
 const savedGameIds = new Set<string>();
 
@@ -46,6 +47,49 @@ function outcomeForUser(
   return "lost";
 }
 
+
+
+
+
+
+
+const k1 = 32; // K-factor for player 1
+async function calculateElo(
+  rating1: number,
+  rating2: number,
+  result: "player1_wins" | "player2_wins" | "draw"
+) {
+  const expected1 =
+    1 / (1 + Math.pow(10, (rating2 - rating1) / 400));
+
+  const expected2 = 1 - expected1;
+
+  let score1 = 0;
+  let score2 = 0;
+
+  switch (result) {
+    case "player1_wins":
+      score1 = 1;
+      score2 = 0;
+      break;
+    case "player2_wins":
+      score1 = 0;
+      score2 = 1;
+      break;
+    case "draw":
+      score1 = 0.5;
+      score2 = 0.5;
+      break;
+  }
+
+  return {
+    player1: Math.round(rating1 + k1 * (score1 - expected1)),
+    player2: Math.round(rating2 + k1 * (score2 - expected2)),
+  };
+}
+
+
+
 async function updateUserStats(
   prisma: PrismaClient,
   userId: string,
@@ -85,6 +129,44 @@ async function updateUserStats(
     },
   });
 }
+
+
+async function updateElo(
+  prisma: PrismaClient,
+  player1Id: string,
+  player2Id: string,
+  gameType: string,
+  result: "player1_wins" | "player2_wins" | "draw"
+) {
+  const [p1, p2] = await Promise.all([
+    prisma.userStats.findFirst({
+      where: { userId: player1Id, gameType },
+    }),
+    prisma.userStats.findFirst({
+      where: { userId: player2Id, gameType },
+    }),
+  ]);
+
+  if (!p1 || !p2) return;
+
+  const ratings = await calculateElo(
+    p1.eloRating,
+    p2.eloRating,
+    result
+  );
+
+  await prisma.$transaction([
+    prisma.userStats.update({
+      where: { id: p1.id },
+      data: { eloRating: ratings.player1 },
+    }),
+    prisma.userStats.update({
+      where: { id: p2.id },
+      data: { eloRating: ratings.player2 },
+    }),
+  ]);
+}
+
 
 export async function saveFinishedGame(
   prisma: PrismaClient,
@@ -133,7 +215,17 @@ export async function saveFinishedGame(
       );
     }
 
-    console.log(
+
+    if (!input.isAgainstAI && input.player2Id) {
+        await updateElo(
+            prisma,
+            input.player1Id,
+            input.player2Id,
+            input.gameType,
+            result as "player1_wins" | "player2_wins" | "draw"
+        );
+    }
+        console.log(
       `[GameRecord] Saved game ${input.gameId} — result: ${result}`
     );
   } catch (error) {

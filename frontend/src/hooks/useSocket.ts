@@ -79,11 +79,15 @@ export function useSocket() {
     error,
 
     // Game methods
-    createGame: (playerId: string, vsAI: boolean = true) => {
+    createGame: (
+      playerId: string,
+      vsAI: boolean = true,
+      options: Record<string, any> | null = null
+    ) => {
       return new Promise((resolve, reject) => {
         socketRef.current?.emit(
           "create-game",
-          { playerId, gameType: "connect-four", vsAI },
+          { playerId, gameType: "connect-four", vsAI, options },
           (response: any) => {
             if (response.error) {
               reject(new Error(response.error));

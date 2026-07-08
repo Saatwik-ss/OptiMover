@@ -19,6 +19,7 @@ interface GameLocationState {
   initialState?: { board: number[][]; currentPlayer?: number };
   isVsAI?: boolean;
   isHost?: boolean;
+  options?: any;
 }
 
 export default function ConnectFourGame() {
@@ -32,6 +33,7 @@ export default function ConnectFourGame() {
   const gameState = (location.state as GameLocationState | null) ?? {};
   const isVsAI = gameState.isVsAI ?? true;
   const isHost = gameState.isHost ?? true;
+  const options = gameState.options ?? null;
 
   const [board, setBoard] = useState<number[][]>(
     () => gameState.initialState?.board ?? createEmptyBoard()
@@ -48,7 +50,7 @@ export default function ConnectFourGame() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const isMyTurn = isVsAI || currentPlayer === myPlayerNumber;
+  const isMyTurn = currentPlayer === myPlayerNumber;
   const canPlay =
     gameStatus === "ongoing" && opponentJoined && isMyTurn && !isAIThinking;
 
@@ -164,6 +166,11 @@ export default function ConnectFourGame() {
   const myColorClass = myPlayerNumber === 1 ? "bg-yellow-400" : "bg-red-500";
   const opponentColorClass = myPlayerNumber === 1 ? "bg-red-500" : "bg-yellow-400";
 
+  // Apply options-based classes
+  const playerPieceClass = options?.playerColor === "red" ? "bg-red-500" : options?.playerColor === "yellow" ? "bg-yellow-400" : myColorClass;
+  const opponentPieceClass = options?.opponentColor === "red" ? "bg-red-500" : options?.opponentColor === "yellow" ? "bg-yellow-400" : opponentColorClass;
+  const boardClass = options?.boardColor ?? "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30";
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8 text-center">
@@ -249,6 +256,10 @@ export default function ConnectFourGame() {
           onColumnClick={handleColumnClick}
           disabled={!canPlay}
           isAIThinking={isVsAI && isAIThinking}
+          playerPieceClass={playerPieceClass}
+          opponentPieceClass={opponentPieceClass}
+          boardClass={boardClass}
+          opponentLabel={isVsAI ? "AI" : "Opponent"}
         />
       </div>
 

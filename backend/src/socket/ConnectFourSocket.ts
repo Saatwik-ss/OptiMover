@@ -33,6 +33,7 @@ export function setupConnectFourSocket(
     socket.on("create-game", (payload, callback) => {
       try {
         const { playerId, gameType, vsAI } = payload;
+        const { options } = payload || {};
 
         if (gameType !== "connect-four") {
           callback({ error: "Invalid game type" });
@@ -42,13 +43,25 @@ export function setupConnectFourSocket(
         const gameId = uuidv4();
         const engine = new Connect4Engine();
 
+        const initialState = engine.initialize();
+        // Apply options: who moves first
+        if (options && options.whoMovesFirst === "opponent") {
+          // set starting player to 2
+          initialState.currentPlayer = 2;
+        } else {
+          initialState.currentPlayer = 1;
+        }
+
         const game: ConnectFourGame = {
           gameId,
           player1Id: playerId,
           isAgainstAI: vsAI || false,
-          gameState: engine.initialize(),
+          gameState: initialState,
           engine,
-        };
+        } as ConnectFourGame;
+
+        // Attach options for later (e.g., difficulty)
+        (game as any).options = options || null;
 
         activeGames.set(gameId, game);
         socket.join(`game:${gameId}`);
@@ -59,13 +72,22 @@ export function setupConnectFourSocket(
           success: true,
           gameId,
           initialState: engine.serialize(game.gameState),
+          options: (game as any).options || null,
         });
 
         // Emit to all players in room
         io.to(`game:${gameId}`).emit("game-created", {
           gameId,
           gameState: engine.serialize(game.gameState),
+          options: (game as any).options || null,
         });
+        
+        // If AI starts (player 2) and it's an AI game, trigger AI move
+        if (game.isAgainstAI && game.gameState.currentPlayer === 2) {
+          setTimeout(() => {
+            makeAIMove(io, game, gameId, aiClient, prisma);
+          }, 500);
+        }
       } catch (error) {
         console.error("Error creating game:", error);
         callback({ error: "Failed to create game" });
@@ -87,10 +109,12 @@ export function setupConnectFourSocket(
         const isPlayer1 = game.player1Id === playerId;
         const isAIGame = game.isAgainstAI;
 
-        if (isAIGame && isPlayer1) {
-          // Correct - player 1 makes first move in AI games
-        } else if (!isAIGame) {
-          // In multiplayer, check turn
+        if (isAIGame) {
+          if (!isPlayer1 || game.gameState.currentPlayer !== 1) {
+            callback({ error: "Not your turn" });
+            return;
+          }
+        } else {
           const expectedPlayer =
             game.gameState.currentPlayer === 1 ? game.player1Id : game.player2Id;
           if (expectedPlayer !== playerId) {
@@ -170,12 +194,14 @@ export function setupConnectFourSocket(
             gameId,
             player2Id: playerId,
             gameState: game.engine.serialize(game.gameState),
+            options: (game as any).options || null,
           });
 
           callback({
             success: true,
             gameId,
             initialState: game.engine.serialize(game.gameState),
+            options: (game as any).options || null,
           });
         } else {
           callback({ error: "Game is full" });
@@ -263,7 +289,7 @@ async function makeAIMove(
     const boardData = game.gameState.board;
 
     // Get AI move from service
-    const aiMoveResponse = await aiClient.getConnectFourMove(boardData);
+    const aiMoveResponse = await aiClient.getConnectFourMove(boardData, (game as any).options || undefined);
     const column = aiMoveResponse.move;
 
     // Validate and make move
