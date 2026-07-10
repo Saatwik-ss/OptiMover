@@ -28,6 +28,8 @@ export default function ConnectFourGame() {
   const location = useLocation();
   const { socket, makeMove, onMoveMade, onGameEnded, onAIError, onPlayerJoined } =
     useSocket();
+
+
   const { user } = useAuth();
 
   const gameState = (location.state as GameLocationState | null) ?? {};

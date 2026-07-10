@@ -10,7 +10,29 @@ import ConnectFourGame from "./pages/ConnectFourGame";
 import GameHistory from "./pages/GameHistory";
 import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/authContext";
+import { useEffect } from "react";
 
+function App() {
+  useEffect(() => {
+    const wake = async (url: string) => {
+      try {
+        await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+        });
+      } catch {
+        
+      }
+    };
+
+    wake("https://optimover-backend.onrender.com/health");
+    wake("https://optimover-ai.onrender.com/health");
+  }, []);
+
+  return (
+    // your app
+  );
+}
 export default function App() {
   const { isConnected } = useSocket();
   const { isAuthenticated, loading } = useAuth();
