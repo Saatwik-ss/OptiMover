@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../hooks/authContext";
 import { useSocket } from "../hooks/useSocket";
 import { 
   Gamepad2, 

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../hooks/authContext";
 import { fetchGameHistory, type ApiGame } from "../lib/api";
 import {
   Trophy,

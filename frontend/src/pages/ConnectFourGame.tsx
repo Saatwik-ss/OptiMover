@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Copy, Check, Users } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../hooks/authContext";
 import Connect4Board from "../components/Connect4Board";
 import Button from "../components/Button";
 

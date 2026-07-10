@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../hooks/authContext";
 import { useSocket } from "../hooks/useSocket";
 import { fetchUserStats } from "../lib/api";
 import Button from "../components/Button";

@@ -9,7 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import ConnectFourGame from "./pages/ConnectFourGame";
 import GameHistory from "./pages/GameHistory";
 import { useSocket } from "./hooks/useSocket";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth } from "./hooks/authContext";
 
 export default function App() {
   const { isConnected } = useSocket();

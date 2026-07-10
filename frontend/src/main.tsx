@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
-import { AuthProvider } from './hooks/useAuth'
+import { AuthProvider } from "./hooks/authContext";
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
