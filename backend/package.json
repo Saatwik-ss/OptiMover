@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Node.js backend for board game platform with AI integration",
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
