@@ -12,7 +12,7 @@ import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/authContext";
 import { useEffect } from "react";
 
-function App() {
+export default function App() {
   useEffect(() => {
     const wake = async (url: string) => {
       try {
@@ -21,7 +21,7 @@ function App() {
           cache: "no-store",
         });
       } catch {
-        
+        // ignore
       }
     };
 
@@ -29,11 +29,6 @@ function App() {
     wake("https://optimover-ai.onrender.com/health");
   }, []);
 
-  return (
-    // your app
-  );
-}
-export default function App() {
   const { isConnected } = useSocket();
   const { isAuthenticated, loading } = useAuth();
 
