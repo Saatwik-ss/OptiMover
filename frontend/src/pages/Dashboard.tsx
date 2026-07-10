@@ -12,9 +12,7 @@ import Button from "../components/Button";
 import GameOptionsModal, { GameOptions } from "../components/GameOptionsModal";
 import { 
   Gamepad2, 
-  Cpu, 
   Activity, 
-  History, 
   Target, 
   Trophy, 
   TrendingUp, 

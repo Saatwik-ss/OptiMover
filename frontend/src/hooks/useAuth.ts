@@ -32,7 +32,7 @@ export function useAuth() {
     setLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, _password: string) => {
     try {
       setLoading(true);
       setError(null);
