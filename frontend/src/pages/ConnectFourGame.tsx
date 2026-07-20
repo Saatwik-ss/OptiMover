@@ -10,7 +10,6 @@ import { useSocket } from "../hooks/useSocket";
 import { useAuth } from "../hooks/authContext";
 import Connect4Board from "../components/Connect4Board";
 import Button from "../components/Button";
-
 function createEmptyBoard(): number[][] {
   return Array.from({ length: 6 }, () => Array(7).fill(0));
 }
@@ -28,8 +27,6 @@ export default function ConnectFourGame() {
   const location = useLocation();
   const { socket, makeMove, onMoveMade, onGameEnded, onAIError, onPlayerJoined } =
     useSocket();
-
-
   const { user } = useAuth();
 
   const gameState = (location.state as GameLocationState | null) ?? {};
@@ -64,9 +61,11 @@ export default function ConnectFourGame() {
     if (result === "player2_wins") {
       return myPlayerNumber === 2 ? "You win!" : "Opponent wins!";
     }
+
     if (result === "ai_wins") return "AI wins!";
     if (resigned) return "Game ended by resignation";
     return null;
+                                                       
   };
 
   useEffect(() => {
@@ -165,9 +164,22 @@ export default function ConnectFourGame() {
     }
   };
 
-  const myColorClass = myPlayerNumber === 1 ? "bg-yellow-400" : "bg-red-500";
-  const opponentColorClass = myPlayerNumber === 1 ? "bg-red-500" : "bg-yellow-400";
+  const hostColorClass =
+    options?.playerColor === "red"
+      ? "bg-red-500"
+      : "bg-yellow-400";
 
+  const guestColorClass =
+    options?.opponentColor === "red"
+      ? "bg-red-500"
+      : "bg-yellow-400";
+
+  const myColorClass =
+    myPlayerNumber === 1 ? hostColorClass : guestColorClass;
+
+  const opponentColorClass =
+    myPlayerNumber === 1 ? guestColorClass : hostColorClass;
+  const colorshow = myColorClass;
   // Apply options-based classes
   const playerPieceClass = options?.playerColor === "red" ? "bg-red-500" : options?.playerColor === "yellow" ? "bg-yellow-400" : myColorClass;
   const opponentPieceClass = options?.opponentColor === "red" ? "bg-red-500" : options?.opponentColor === "yellow" ? "bg-yellow-400" : opponentColorClass;
@@ -186,10 +198,10 @@ export default function ConnectFourGame() {
         <div className="mb-6 p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-xl">
           <div className="flex items-center gap-2 text-indigo-300 text-sm font-medium mb-2">
             <Users className="w-4 h-4" />
-            Waiting for opponent to join...
+            Waiting for opponent to join
           </div>
           <p className="text-xs text-zinc-400 mb-3">
-            Share this game ID with your friend. They register/login, then paste it
+            Share this game ID . They register/login, then paste it
             under &quot;Join a Friend&apos;s Game&quot; on the dashboard.
           </p>
           <div className="flex gap-2">
@@ -227,23 +239,12 @@ export default function ConnectFourGame() {
           <div>
             <p className="text-slate-400 text-sm">Your Color</p>
             <div className="flex justify-center">
-              <div className={`w-6 h-6 rounded-full shadow-lg ${myColorClass}`} />
+              <div className={`w-6 h-6 rounded-full shadow-lg ${colorshow}`} />
             </div>
           </div>
         </div>
 
-        {!isVsAI && opponentJoined && (
-          <div className="flex justify-center gap-6 text-xs text-slate-400 pt-2 border-t border-slate-700">
-            <span className="flex items-center gap-2">
-              <span className={`w-3 h-3 rounded-full ${myColorClass}`} />
-              You (Player {myPlayerNumber})
-            </span>
-            <span className="flex items-center gap-2">
-              <span className={`w-3 h-3 rounded-full ${opponentColorClass}`} />
-              Opponent
-            </span>
-          </div>
-        )}
+
 
         {winner && (
           <div className="text-center pt-4 border-t border-slate-700">
@@ -261,6 +262,7 @@ export default function ConnectFourGame() {
           playerPieceClass={playerPieceClass}
           opponentPieceClass={opponentPieceClass}
           boardClass={boardClass}
+          myPlayerNumber={myPlayerNumber}
           opponentLabel={isVsAI ? "AI" : "Opponent"}
         />
       </div>

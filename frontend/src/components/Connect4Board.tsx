@@ -5,6 +5,8 @@
 
 import { useState } from "react";
 import classNames from "classnames";
+import {useLocation } from "react-router-dom";
+
 
 export interface Connect4BoardProps {
   board: number[][];
@@ -15,9 +17,21 @@ export interface Connect4BoardProps {
   opponentPieceClass?: string;
   boardClass?: string;
   opponentLabel?: string;
+  myPlayerNumber: 1 | 2;
+  myColorClass?: string;
+  opponentColorClass?: string;
+  isVsAI?: boolean;
+  isHost?: boolean;
+  options?: any;
 }
 
 const COLS = 7;
+interface GameLocationState {
+  initialState?: { board: number[][]; currentPlayer?: number };
+  isVsAI?: boolean;
+  isHost?: boolean;
+  options?: any;
+}
 
 export default function Connect4Board({
   board,
@@ -31,7 +45,30 @@ export default function Connect4Board({
 }: Connect4BoardProps) {
   const [highlightColumn, setHighlightColumn] = useState<number | null>(null);
   const canPlay = !disabled && !isAIThinking;
+  const location = useLocation();
+  const gameState = (location.state as GameLocationState | null) ?? {};
+  const options = gameState.options ?? null;
+  const isVsAI = gameState.isVsAI ?? true;
+  const isHost = gameState.isHost ?? true;
+  const [myPlayerNumber] = useState<1 | 2>(isVsAI || isHost ? 1 : 2);
 
+  const player1Class = playerPieceClass;
+  const player2Class = opponentPieceClass;
+  const hostColorClass =
+    options?.playerColor === "red"
+      ? "bg-red-500"
+      : "bg-yellow-400";
+
+  const guestColorClass =
+    options?.opponentColor === "red"
+      ? "bg-red-500"
+      : "bg-yellow-400";
+  const myColorClass =
+    myPlayerNumber === 1 ? hostColorClass : guestColorClass;
+
+  const opponentColorClass =
+    myPlayerNumber === 1 ? guestColorClass : hostColorClass;
+  const colorshow = myColorClass;
   const handleColumnClick = (col: number) => {
     if (!canPlay) return;
 
@@ -115,8 +152,8 @@ export default function Connect4Board({
                     className={classNames(
                       "w-[88%] h-[88%] rounded-full shadow-lg",
                       {
-                        [playerPieceClass + " shadow-yellow-400/40"]: piece === 1,
-                        [opponentPieceClass + " shadow-red-500/40"]: piece === 2,
+                        [player1Class + " shadow-yellow-400/40"]: piece === 1,
+                        [player2Class + " shadow-red-500/40"]: piece === 2,
                       }
                     )}
                   />
@@ -130,11 +167,11 @@ export default function Connect4Board({
       {/* Legend */}
         <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
           <span className="flex items-center gap-2">
-            <span className={`w-4 h-4 rounded-full ${playerPieceClass}`} />
+            <span className={`w-4 h-4 rounded-full ${colorshow}`} />
             You
           </span>
           <span className="flex items-center gap-2">
-            <span className={`w-4 h-4 rounded-full ${opponentPieceClass}`} />
+            <span className={`w-4 h-4 rounded-full ${opponentColorClass}`} />
             {opponentLabel}
           </span>
         </div>
@@ -146,7 +183,7 @@ export default function Connect4Board({
             <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.1s]" />
             <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.2s]" />
           </div>
-          <span className="text-sm font-medium">AI is thinking...</span>
+          <span className="text-sm font-medium">AI is thinking</span>
         </div>
       )}
     </div>

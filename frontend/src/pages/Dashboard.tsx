@@ -111,9 +111,11 @@ export default function Dashboard() {
         setIsHostingMultiplayer(true);
       }
       const response = (await createGame(user.id, optionsForAI, opts)) as {
+        
         gameId: string;
         initialState: { board: number[][] };
       };
+      console.log(response);
 
       navigate(`/game/${response.gameId}`, {
         state: {
