@@ -1,7 +1,4 @@
-/**
- * Board Game Platform - React App
- */
-
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { WifiOff } from "lucide-react";
 import Navbar from "./components/Navbar";
@@ -11,9 +8,16 @@ import GameHistory from "./pages/GameHistory";
 import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/authContext";
 
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://optimover-ai.onrender.com";
+
 export default function App() {
   const { isConnected } = useSocket();
   const { isAuthenticated, loading } = useAuth();
+
+  useEffect(() => {
+    fetch(`${API_URL}/health`).catch(() => {});
+  }, []);
 
   if (loading) {
     return (
