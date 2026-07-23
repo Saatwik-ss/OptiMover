@@ -190,7 +190,7 @@ export default function ConnectFourGame() {
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-white mb-2">Connect Four</h1>
         <p className="text-slate-400">
-          {isVsAI ? "Playing against AI" : "Multiplayer — real opponent"}
+          {isVsAI ? "Playing against AI" : "Multiplayer"}
         </p>
       </div>
 
