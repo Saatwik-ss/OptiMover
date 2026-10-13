@@ -29,29 +29,42 @@ function setupConnectFourSocket(io, aiClient, prisma) {
                 else {
                     initialState.currentPlayer = 1;
                 }
+                const timeControl = options?.timeControl || 300;
                 const game = {
                     gameId,
                     player1Id: playerId,
                     isAgainstAI: vsAI || false,
                     gameState: initialState,
                     engine,
+                    options: options || null,
+                    timeControl,
+                    player1Time: timeControl,
+                    player2Time: timeControl,
+                    isTimerActive: false,
                 };
-                // Attach options for later (e.g., difficulty)
-                game.options = options || null;
                 activeGames.set(gameId, game);
                 socket.join(`game:${gameId}`);
-                console.log(`[Connect Four] Created game ${gameId}`);
+                console.log(`[Connect Four] Created game ${gameId} with timeControl ${timeControl}s`);
+                if (vsAI) {
+                    startConnectFourTimer(game, io, prisma);
+                }
                 callback({
                     success: true,
                     gameId,
                     initialState: engine.serialize(game.gameState),
                     options: game.options || null,
+                    player1Time: game.player1Time,
+                    player2Time: game.player2Time,
+                    timeControl: game.timeControl,
                 });
                 // Emit to all players in room
                 io.to(`game:${gameId}`).emit("game-created", {
                     gameId,
                     gameState: engine.serialize(game.gameState),
                     options: game.options || null,
+                    player1Time: game.player1Time,
+                    player2Time: game.player2Time,
+                    timeControl: game.timeControl,
                 });
                 // If AI starts (player 2) and it's an AI game, trigger AI move
                 if (game.isAgainstAI && game.gameState.currentPlayer === 2) {
@@ -96,6 +109,18 @@ function setupConnectFourSocket(io, aiClient, prisma) {
                     callback({ error: "Invalid move: column is full" });
                     return;
                 }
+                // Deduct time for active player
+                if (game.isTimerActive && game.lastTurnTimestamp) {
+                    const now = Date.now();
+                    const elapsed = (now - game.lastTurnTimestamp) / 1000;
+                    game.lastTurnTimestamp = now;
+                    if (game.gameState.currentPlayer === 1) {
+                        game.player1Time = Math.max(0, game.player1Time - elapsed);
+                    }
+                    else {
+                        game.player2Time = Math.max(0, game.player2Time - elapsed);
+                    }
+                }
                 // Make move
                 const result = game.engine.makeMove(game.gameState, move);
                 if (!result.success) {
@@ -112,8 +137,14 @@ function setupConnectFourSocket(io, aiClient, prisma) {
                     playerId,
                     gameState: game.engine.serialize(game.gameState),
                     status,
+                    player1Time: Math.ceil(game.player1Time),
+                    player2Time: Math.ceil(game.player2Time),
                 });
-                callback({ success: true });
+                callback({
+                    success: true,
+                    player1Time: Math.ceil(game.player1Time),
+                    player2Time: Math.ceil(game.player2Time),
+                });
                 if (status.status === "finished") {
                     await finishGame(io, prisma, game, status.result);
                 }
@@ -142,21 +173,45 @@ function setupConnectFourSocket(io, aiClient, prisma) {
                     callback({ error: "Cannot join AI game" });
                     return;
                 }
+                // Prevent player from joining their own game (both players must have different IDs)
+                if (game.player1Id === playerId) {
+                    callback({ error: "Cannot join your own game. Both players must have different accounts." });
+                    return;
+                }
                 // Set as player 2
                 if (!game.player2Id) {
                     game.player2Id = playerId;
                     socket.join(`game:${gameId}`);
+                    startConnectFourTimer(game, io, prisma);
                     io.to(`game:${gameId}`).emit("player-joined", {
                         gameId,
                         player2Id: playerId,
                         gameState: game.engine.serialize(game.gameState),
                         options: game.options || null,
+                        player1Time: Math.ceil(game.player1Time),
+                        player2Time: Math.ceil(game.player2Time),
+                        timeControl: game.timeControl,
                     });
                     callback({
                         success: true,
                         gameId,
                         initialState: game.engine.serialize(game.gameState),
                         options: game.options || null,
+                        player1Time: Math.ceil(game.player1Time),
+                        player2Time: Math.ceil(game.player2Time),
+                        timeControl: game.timeControl,
+                    });
+                }
+                else if (game.player2Id === playerId) {
+                    socket.join(`game:${gameId}`);
+                    callback({
+                        success: true,
+                        gameId,
+                        initialState: game.engine.serialize(game.gameState),
+                        options: game.options || null,
+                        player1Time: Math.ceil(game.player1Time),
+                        player2Time: Math.ceil(game.player2Time),
+                        timeControl: game.timeControl,
                     });
                 }
                 else {
@@ -185,21 +240,149 @@ function setupConnectFourSocket(io, aiClient, prisma) {
                 callback({ error: "Failed to resign" });
             }
         });
+        // Offer draw in Connect Four
+        socket.on("offer-draw", async (payload, callback) => {
+            try {
+                const { gameId, playerId } = payload;
+                const game = activeGames.get(gameId);
+                if (!game) {
+                    callback?.({ error: "Game not found" });
+                    return;
+                }
+                if (game.isAgainstAI) {
+                    let totalPieces = 0;
+                    for (const row of game.gameState.board) {
+                        for (const cell of row) {
+                            if (cell !== 0)
+                                totalPieces++;
+                        }
+                    }
+                    if (totalPieces >= 14) {
+                        await finishGame(io, prisma, game, "draw");
+                        callback?.({ success: true, accepted: true });
+                    }
+                    else {
+                        io.to(`game:${gameId}`).emit("draw-declined", {
+                            gameId,
+                            message: "AI declined the draw offer as the game has just begun.",
+                        });
+                        callback?.({ success: true, accepted: false });
+                    }
+                    return;
+                }
+                game.drawOfferedBy = playerId;
+                io.to(`game:${gameId}`).emit("draw-offered", {
+                    gameId,
+                    offeredBy: playerId,
+                });
+                callback?.({ success: true });
+            }
+            catch (error) {
+                console.error("Error offering draw:", error);
+                callback?.({ error: "Failed to offer draw" });
+            }
+        });
+        // Respond to draw in Connect Four
+        socket.on("respond-draw", async (payload, callback) => {
+            try {
+                const { gameId, playerId, accept } = payload;
+                const game = activeGames.get(gameId);
+                if (!game) {
+                    callback?.({ error: "Game not found" });
+                    return;
+                }
+                if (accept) {
+                    await finishGame(io, prisma, game, "draw");
+                    callback?.({ success: true });
+                }
+                else {
+                    delete game.drawOfferedBy;
+                    io.to(`game:${gameId}`).emit("draw-declined", {
+                        gameId,
+                        declinedBy: playerId,
+                        message: "Opponent declined the draw offer.",
+                    });
+                    callback?.({ success: true });
+                }
+            }
+            catch (error) {
+                console.error("Error responding to draw:", error);
+                callback?.({ error: "Failed to respond to draw" });
+            }
+        });
         socket.on("disconnect", () => {
             console.log(`[Connect Four] User disconnected: ${socket.id}`);
         });
     });
 }
-async function finishGame(io, prisma, game, result, resignedBy) {
-    const normalized = (0, GameRecordService_js_1.normalizeConnectFourResult)(result, game.isAgainstAI, game.player1Id, resignedBy);
-    io.to(`game:${game.gameId}`).emit("game-ended", {
+function startConnectFourTimer(game, io, prisma) {
+    if (game.timerInterval) {
+        clearInterval(game.timerInterval);
+    }
+    game.isTimerActive = true;
+    game.lastTurnTimestamp = Date.now();
+    game.timerInterval = setInterval(() => {
+        if (!game.isTimerActive || !game.lastTurnTimestamp)
+            return;
+        const now = Date.now();
+        const elapsed = (now - game.lastTurnTimestamp) / 1000;
+        game.lastTurnTimestamp = now;
+        if (game.gameState.currentPlayer === 1) {
+            game.player1Time = Math.max(0, game.player1Time - elapsed);
+            if (game.player1Time <= 0) {
+                handleConnectFourTimeout(game, 1, io, prisma);
+                return;
+            }
+        }
+        else {
+            game.player2Time = Math.max(0, game.player2Time - elapsed);
+            if (game.player2Time <= 0) {
+                handleConnectFourTimeout(game, 2, io, prisma);
+                return;
+            }
+        }
+        io.to(`game:${game.gameId}`).emit("connect-four-time-sync", {
+            gameId: game.gameId,
+            player1Time: Math.ceil(game.player1Time),
+            player2Time: Math.ceil(game.player2Time),
+            currentPlayer: game.gameState.currentPlayer,
+        });
+    }, 1000);
+}
+async function handleConnectFourTimeout(game, timedOutPlayer, io, prisma) {
+    if (game.timerInterval) {
+        clearInterval(game.timerInterval);
+        game.timerInterval = undefined;
+    }
+    game.isTimerActive = false;
+    const result = timedOutPlayer === 1 ? "player2_wins" : "player1_wins";
+    const timedOutPlayerId = timedOutPlayer === 1 ? game.player1Id : (game.player2Id || "AI");
+    io.to(`game:${game.gameId}`).emit("connect-four-time-out", {
         gameId: game.gameId,
-        result: normalized,
-        winner: normalized === "player1_wins"
+        timedOutPlayer,
+        timedOutPlayerId,
+    });
+    await finishGame(io, prisma, game, result, undefined, timedOutPlayerId);
+}
+async function finishGame(io, prisma, game, result, resignedBy, timedOutPlayerId) {
+    if (game.timerInterval) {
+        clearInterval(game.timerInterval);
+        game.timerInterval = undefined;
+    }
+    game.isTimerActive = false;
+    const normalized = (0, GameRecordService_js_1.normalizeConnectFourResult)(result, game.isAgainstAI, game.player1Id, resignedBy);
+    const winner = normalized === "draw"
+        ? null
+        : normalized === "player1_wins"
             ? game.player1Id
             : normalized === "ai_wins"
                 ? "AI"
-                : game.player2Id || "AI",
+                : game.player2Id || "AI";
+    io.to(`game:${game.gameId}`).emit("game-ended", {
+        gameId: game.gameId,
+        result: normalized,
+        winner,
+        timedOutPlayerId,
     });
     await (0, GameRecordService_js_1.saveFinishedGame)(prisma, {
         gameId: game.gameId,
@@ -227,6 +410,17 @@ async function makeAIMove(io, game, gameId, aiClient, prisma) {
             console.error("[AI] Invalid move returned:", column);
             return;
         }
+        if (game.isTimerActive && game.lastTurnTimestamp) {
+            const now = Date.now();
+            const elapsed = (now - game.lastTurnTimestamp) / 1000;
+            game.lastTurnTimestamp = now;
+            if (game.gameState.currentPlayer === 1) {
+                game.player1Time = Math.max(0, game.player1Time - elapsed);
+            }
+            else {
+                game.player2Time = Math.max(0, game.player2Time - elapsed);
+            }
+        }
         const result = game.engine.makeMove(game.gameState, move);
         if (!result.success) {
             console.error("[AI] Move failed:", result.error);
@@ -241,6 +435,8 @@ async function makeAIMove(io, game, gameId, aiClient, prisma) {
             playerId: "AI",
             gameState: game.engine.serialize(game.gameState),
             status,
+            player1Time: Math.ceil(game.player1Time),
+            player2Time: Math.ceil(game.player2Time),
         });
         if (status.status === "finished") {
             await finishGame(io, prisma, game, status.result);

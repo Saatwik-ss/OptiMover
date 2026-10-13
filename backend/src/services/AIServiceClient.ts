@@ -11,6 +11,14 @@ export interface AIMove {
   analysis?: Record<number, number>;
 }
 
+export interface AIChessMove {
+  move: string;
+  from: string;
+  to: string;
+  promotion?: string;
+  eval?: number;
+}
+
 export interface PositionAnalysis {
   win_probability: number;
   valid_moves: number[];
@@ -50,6 +58,21 @@ export class AIServiceClient {
       return response.data;
     } catch (error) {
       throw this.handleError(error, "Failed to get AI move");
+    }
+  }
+
+  /**
+   * Get AI's move for Chess
+   */
+  async getChessMove(fen: string, difficulty: number = 3): Promise<AIChessMove> {
+    try {
+      const response = await this.client.post<AIChessMove>("/api/games/chess/move", {
+        fen,
+        difficulty,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, "Failed to get AI chess move");
     }
   }
 

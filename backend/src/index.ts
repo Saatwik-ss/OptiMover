@@ -15,6 +15,7 @@ dotenv.config();
 
 // Import socket handlers
 import { setupConnectFourSocket } from "./socket/ConnectFourSocket.js";
+import { setupChessSocket } from "./socket/ChessSocket.js";
 
 // 2. Fixed to match 'AIServiceClient' + added .js
 import AIServiceClient from "./services/AIServiceClient.js";
@@ -49,6 +50,7 @@ const io = new Server(httpServer, {
 
 // Initialize game socket handlers
 setupConnectFourSocket(io, aiClient, prisma);
+setupChessSocket(io, aiClient, prisma);
 
 // ==================== REST API Routes ====================
 

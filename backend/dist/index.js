@@ -18,6 +18,7 @@ const client_1 = require("@prisma/client");
 dotenv_1.default.config();
 // Import socket handlers
 const ConnectFourSocket_js_1 = require("./socket/ConnectFourSocket.js");
+const ChessSocket_js_1 = require("./socket/ChessSocket.js");
 // 2. Fixed to match 'AIServiceClient' + added .js
 const AIServiceClient_js_1 = __importDefault(require("./services/AIServiceClient.js"));
 const GameRecordService_js_1 = require("./services/GameRecordService.js");
@@ -50,6 +51,7 @@ const io = new socket_io_1.Server(httpServer, {
 exports.io = io;
 // Initialize game socket handlers
 (0, ConnectFourSocket_js_1.setupConnectFourSocket)(io, aiClient, prisma);
+(0, ChessSocket_js_1.setupChessSocket)(io, aiClient, prisma);
 // ==================== REST API Routes ====================
 // Health check
 app.get("/health", (req, res) => {

@@ -7,6 +7,13 @@ export interface AIMove {
     confidence?: number;
     analysis?: Record<number, number>;
 }
+export interface AIChessMove {
+    move: string;
+    from: string;
+    to: string;
+    promotion?: string;
+    eval?: number;
+}
 export interface PositionAnalysis {
     win_probability: number;
     valid_moves: number[];
@@ -25,6 +32,10 @@ export declare class AIServiceClient {
      * Get AI's move for Connect Four
      */
     getConnectFourMove(board: number[][], options?: Record<string, any>): Promise<AIMove>;
+    /**
+     * Get AI's move for Chess
+     */
+    getChessMove(fen: string, difficulty?: number): Promise<AIChessMove>;
     /**
      * Analyze a board position
      */

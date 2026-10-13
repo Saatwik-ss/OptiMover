@@ -5,11 +5,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Copy, Check, Users } from "lucide-react";
+import { Copy, Check, Users, Handshake, Flag } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
 import { useAuth } from "../hooks/authContext";
 import Connect4Board from "../components/Connect4Board";
 import Button from "../components/Button";
+import GameClock from "../components/GameClock";
 function createEmptyBoard(): number[][] {
   return Array.from({ length: 6 }, () => Array(7).fill(0));
 }
@@ -25,14 +26,36 @@ export default function ConnectFourGame() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { socket, makeMove, onMoveMade, onGameEnded, onAIError, onPlayerJoined } =
-    useSocket();
+  const {
+    resign,
+    offerDraw,
+    respondDraw,
+    makeMove,
+    onMoveMade,
+    onGameEnded,
+    onDrawOffered,
+    onDrawDeclined,
+    onAIError,
+    onPlayerJoined,
+    onConnectFourTimeSync,
+    onConnectFourTimeOut,
+  } = useSocket();
   const { user } = useAuth();
 
   const gameState = (location.state as GameLocationState | null) ?? {};
   const isVsAI = gameState.isVsAI ?? true;
   const isHost = gameState.isHost ?? true;
   const options = gameState.options ?? null;
+
+  const initialTimeControl: number =
+    options?.timeControl ||
+    gameState.options?.timeControl ||
+    300;
+
+  const [timeControl, setTimeControl] = useState<number>(initialTimeControl);
+  const [player1Time, setPlayer1Time] = useState<number>(initialTimeControl);
+  const [player2Time, setPlayer2Time] = useState<number>(initialTimeControl);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(isVsAI || !isHost);
 
   const [board, setBoard] = useState<number[][]>(
     () => gameState.initialState?.board ?? createEmptyBoard()
@@ -48,6 +71,11 @@ export default function ConnectFourGame() {
   const [moveCount, setMoveCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Draw offer state
+  const [incomingDrawOffer, setIncomingDrawOffer] = useState(false);
+  const [drawNotice, setDrawNotice] = useState<string | null>(null);
+  const [isOfferingDraw, setIsOfferingDraw] = useState(false);
 
   const isMyTurn = currentPlayer === myPlayerNumber;
   const canPlay =
@@ -68,6 +96,21 @@ export default function ConnectFourGame() {
                                                        
   };
 
+  // Local 1-second countdown ticker for smooth clock display
+  useEffect(() => {
+    if (gameStatus !== "ongoing" || !opponentJoined || !isTimerRunning) return;
+
+    const timer = setInterval(() => {
+      if (currentPlayer === 1) {
+        setPlayer1Time((prev) => Math.max(0, prev - 1));
+      } else {
+        setPlayer2Time((prev) => Math.max(0, prev - 1));
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameStatus, opponentJoined, isTimerRunning, currentPlayer]);
+
   useEffect(() => {
     if (!gameId || !user) return;
 
@@ -83,6 +126,14 @@ export default function ConnectFourGame() {
       }
       setMoveCount((prev) => prev + 1);
 
+      if (typeof event.player1Time === "number") {
+        setPlayer1Time(event.player1Time);
+      }
+      if (typeof event.player2Time === "number") {
+        setPlayer2Time(event.player2Time);
+      }
+      setIsTimerRunning(true);
+
       if (event.playerId === "AI") {
         setIsAIThinking(false);
       } else if (!isVsAI && event.playerId === user.id) {
@@ -91,6 +142,7 @@ export default function ConnectFourGame() {
 
       if (event.status?.status === "finished" && event.status.result) {
         setGameStatus("finished");
+        setIsTimerRunning(false);
         setWinner(resolveWinnerMessage(event.status.result) ?? "Game over");
       }
     });
@@ -99,7 +151,15 @@ export default function ConnectFourGame() {
       if (event.gameId !== gameId) return;
 
       setGameStatus("finished");
-      if (event.result === "resignation") {
+      setIsTimerRunning(false);
+
+      if (event.timedOutPlayerId) {
+        setWinner(
+          event.timedOutPlayerId === user.id
+            ? "Time Out — You ran out of time."
+            : "Time Out — Opponent ran out of time! You Win!"
+        );
+      } else if (event.result === "resignation") {
         setWinner(
           event.winner === user.id
             ? "You win by resignation!"
@@ -113,6 +173,53 @@ export default function ConnectFourGame() {
     const unsubscribeJoined = onPlayerJoined((event) => {
       if (event.gameId === gameId) {
         setOpponentJoined(true);
+        setIsTimerRunning(true);
+        if (typeof event.player1Time === "number") {
+          setPlayer1Time(event.player1Time);
+        }
+        if (typeof event.player2Time === "number") {
+          setPlayer2Time(event.player2Time);
+        }
+        if (event.timeControl) {
+          setTimeControl(event.timeControl);
+        }
+      }
+    });
+
+    const unsubscribeTimeSync = onConnectFourTimeSync((event: any) => {
+      if (event.gameId === gameId) {
+        if (typeof event.player1Time === "number") {
+          setPlayer1Time(event.player1Time);
+        }
+        if (typeof event.player2Time === "number") {
+          setPlayer2Time(event.player2Time);
+        }
+        setIsTimerRunning(true);
+      }
+    });
+
+    const unsubscribeTimeOut = onConnectFourTimeOut((event: any) => {
+      if (event.gameId === gameId) {
+        setGameStatus("finished");
+        setIsTimerRunning(false);
+        if (event.timedOutPlayer === myPlayerNumber) {
+          setWinner("Time Out — You ran out of time.");
+        } else {
+          setWinner("Time Out — Opponent ran out of time! You Win!");
+        }
+      }
+    });
+
+    const unsubscribeDrawOffered = onDrawOffered((event: any) => {
+      if (event.gameId === gameId && event.offeredBy !== user.id) {
+        setIncomingDrawOffer(true);
+      }
+    });
+
+    const unsubscribeDrawDeclined = onDrawDeclined((event: any) => {
+      if (event.gameId === gameId) {
+        setDrawNotice(event.message || "Draw offer declined.");
+        setTimeout(() => setDrawNotice(null), 4000);
       }
     });
 
@@ -127,6 +234,10 @@ export default function ConnectFourGame() {
       unsubscribeMade();
       unsubscribeEnded();
       unsubscribeJoined();
+      unsubscribeTimeSync();
+      unsubscribeTimeOut();
+      unsubscribeDrawOffered();
+      unsubscribeDrawDeclined();
       unsubscribeAIError();
     };
   }, [gameId, user, isVsAI, myPlayerNumber]);
@@ -153,11 +264,37 @@ export default function ConnectFourGame() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOfferDraw = async () => {
+    if (!gameId || !user || gameStatus === "finished" || isOfferingDraw) return;
+    try {
+      setIsOfferingDraw(true);
+      setDrawNotice("Offering draw...");
+      const res = (await offerDraw(gameId, user.id)) as any;
+      if (res?.accepted) {
+        setDrawNotice("Draw agreed!");
+      }
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Failed to offer draw");
+    } finally {
+      setIsOfferingDraw(false);
+    }
+  };
+
+  const handleRespondDraw = async (accept: boolean) => {
+    if (!gameId || !user) return;
+    try {
+      setIncomingDrawOffer(false);
+      await respondDraw(gameId, user.id, accept);
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Failed to respond to draw offer");
+    }
+  };
+
   const handleResign = async () => {
     if (!gameId || !user) return;
 
     try {
-      await socket?.emit("resign", { gameId, playerId: user.id });
+      await resign(gameId, user.id);
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resign");
@@ -184,7 +321,9 @@ export default function ConnectFourGame() {
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-white mb-2">Connect Four</h1>
         <p className="text-slate-400">
-          {isVsAI ? "Playing against AI" : "Multiplayer"}
+          {isVsAI
+            ? `Playing against AI • ${Math.round(timeControl / 60)} min`
+            : `Multiplayer • ${Math.round(timeControl / 60)} min`}
         </p>
       </div>
 
@@ -245,7 +384,21 @@ export default function ConnectFourGame() {
         )}
       </div>
 
-      <div className="mb-8">
+      {/* Opponent Bar */}
+      <div className="flex items-center justify-between px-3 mb-3 text-xs text-zinc-400">
+        <div className="flex items-center gap-2">
+          <span className={`w-3.5 h-3.5 rounded-full ${myPlayerNumber === 1 ? player2ColorClass : player1ColorClass}`} />
+          <span className="font-semibold text-sm text-zinc-200">
+            {isVsAI ? "OptiMover Engine" : "Opponent"}
+          </span>
+        </div>
+        <GameClock
+          timeInSeconds={myPlayerNumber === 1 ? player2Time : player1Time}
+          isActive={gameStatus === "ongoing" && opponentJoined && (myPlayerNumber === 1 ? currentPlayer === 2 : currentPlayer === 1)}
+        />
+      </div>
+
+      <div className="mb-4">
         <Connect4Board
           board={board}
           onColumnClick={handleColumnClick}
@@ -259,37 +412,94 @@ export default function ConnectFourGame() {
         />
       </div>
 
+      {/* User Bar */}
+      <div className="flex items-center justify-between px-3 mb-6 text-xs text-zinc-400">
+        <div className="flex items-center gap-2">
+          <span className={`w-3.5 h-3.5 rounded-full ${myColorClass}`} />
+          <span className="font-semibold text-sm text-zinc-200">{user?.username} (You)</span>
+        </div>
+        <GameClock
+          timeInSeconds={myPlayerNumber === 1 ? player1Time : player2Time}
+          isActive={gameStatus === "ongoing" && opponentJoined && (myPlayerNumber === 1 ? currentPlayer === 1 : currentPlayer === 2)}
+        />
+      </div>
+
       {error && (
         <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg">
           <p className="text-red-200 text-sm">{error}</p>
         </div>
       )}
 
-      <div className="flex gap-4 justify-center">
+      {drawNotice && (
+        <div className="mb-5 max-w-md mx-auto p-3 bg-zinc-900 border border-blue-500/30 rounded-xl text-center text-xs font-semibold text-blue-300 animate-fade-in shadow-md">
+          {drawNotice}
+        </div>
+      )}
+
+      <div className="flex gap-3 justify-center">
         {gameStatus === "finished" ? (
           <Button
             onClick={() => navigate("/dashboard")}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-500 px-6 py-2.5 rounded-xl font-semibold"
           >
             Back to Dashboard
           </Button>
         ) : (
-          <Button
-            onClick={handleResign}
-            className="bg-red-600 hover:bg-red-700"
-            disabled={isAIThinking}
-          >
-            Resign
-          </Button>
+          <>
+            <Button
+              onClick={handleOfferDraw}
+              disabled={isAIThinking || isOfferingDraw}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl py-2.5 px-4 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Handshake className="w-3.5 h-3.5 text-blue-400" />
+              Offer Draw
+            </Button>
+            <Button
+              onClick={handleResign}
+              disabled={isAIThinking}
+              className="bg-rose-600/80 hover:bg-rose-500 text-white rounded-xl py-2.5 px-4 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              Resign
+            </Button>
+            <Button
+              onClick={() => navigate("/dashboard")}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-xl py-2.5 px-4 font-medium text-xs transition-colors"
+            >
+              Leave
+            </Button>
+          </>
         )}
-
-        <Button
-          onClick={() => navigate("/dashboard")}
-          className="bg-slate-600 hover:bg-slate-700"
-        >
-          Leave
-        </Button>
       </div>
+
+      {/* Incoming Draw Offer Modal */}
+      {incomingDrawOffer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75" />
+          <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl z-10 max-w-sm w-full text-center">
+            <h3 className="text-lg font-semibold text-white mb-1.5">Draw Offered</h3>
+            <p className="text-xs text-zinc-400 mb-6">
+              Opponent has offered a draw. Do you want to accept?
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => handleRespondDraw(false)}
+                className="flex-1 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-xs transition-colors"
+              >
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRespondDraw(true)}
+                className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors"
+              >
+                Accept Draw
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

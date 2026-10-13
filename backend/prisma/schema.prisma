@@ -24,7 +24,7 @@ model User {
   gamesAsPlayer2 Game[]     @relation("Player2")
   friends        User[]     @relation("Friendship")
   friendOf       User[]     @relation("Friendship")
-  UserStats      UserStats?
+  userStats      UserStats[]
 
   @@index([username])
 }
@@ -106,10 +106,10 @@ model Invitation {
 // Game statistics
 model UserStats {
   id     String @id @default(cuid())
-  userId String @unique
+  userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  gameType String // "connect-four", etc.
+  gameType String // "connect-four", "chess", etc.
 
   gamesPlayed Int @default(0)
   gamesWon    Int @default(0)

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Import game engines and routers
 from app.models.connect_four_cnn import ConnectFourCNN
 from app.engines.connect_four_engine import ConnectFourEngine
-from app.routers import connect_four
+from app.routers import connect_four, chess
 
 # Global state for models
 class AppState:
@@ -89,6 +89,7 @@ app.state.device = app_state.device
 
 # Include routers
 app.include_router(connect_four.router, prefix="/api/games", tags=["Connect Four"])
+app.include_router(chess.router, prefix="/api/games", tags=["Chess"])
 
 # Health check endpoint
 @app.get("/health")

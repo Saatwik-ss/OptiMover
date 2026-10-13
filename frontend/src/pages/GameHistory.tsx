@@ -1,6 +1,6 @@
 /**
  * Game History Page
- * Shows past games and statistics from the API
+ * Shows past games and statistics for Connect Four and Chess.
  */
 
 import { useState, useEffect } from "react";
@@ -16,6 +16,8 @@ import {
   Calendar,
   User as UserIcon,
   Bot,
+  Crown,
+  Target
 } from "lucide-react";
 
 function getOutcomeForUser(
@@ -37,6 +39,7 @@ function getOutcomeForUser(
 export default function GameHistory() {
   const { user } = useAuth();
   const [games, setGames] = useState<ApiGame[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "chess" | "connect-four">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +72,11 @@ export default function GameHistory() {
       cancelled = true;
     };
   }, [user]);
+
+  const filteredGames = games.filter((g) => {
+    if (selectedFilter === "all") return true;
+    return g.gameType === selectedFilter;
+  });
 
   const getResultBadge = (game: ApiGame) => {
     const outcome = user ? getOutcomeForUser(game, user.id) : "unknown";
@@ -122,56 +130,95 @@ export default function GameHistory() {
   }
 
   const wins = user
-    ? games.filter((g) => getOutcomeForUser(g, user.id) === "win").length
+    ? filteredGames.filter((g) => getOutcomeForUser(g, user.id) === "win").length
     : 0;
   const losses = user
-    ? games.filter((g) => getOutcomeForUser(g, user.id) === "loss").length
+    ? filteredGames.filter((g) => getOutcomeForUser(g, user.id) === "loss").length
     : 0;
-  const winRate = games.length > 0 ? Math.round((wins / games.length) * 100) : 0;
+  const winRate = filteredGames.length > 0 ? Math.round((wins / filteredGames.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 p-6 md:p-12 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10 font-sans">
       <div className="max-w-5xl mx-auto space-y-8">
-        <div className="border-b border-white/5 pb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center">
-              <HistoryIcon className="w-5 h-5 text-indigo-400" />
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-zinc-800 pb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-1.5">
+              <div className="w-9 h-9 bg-zinc-800 border border-zinc-700 rounded-xl flex items-center justify-center">
+                <HistoryIcon className="w-5 h-5 text-blue-400" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-white">
+                Match Records
+              </h1>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-white">
-              Match History
-            </h1>
+            <p className="text-zinc-400 text-xs">
+              Review your completed match history and outcomes across games.
+            </p>
           </div>
-          <p className="text-zinc-500 text-sm ml-13">
-            Your recorded Connect Four matches and outcomes.
-          </p>
+
+          {/* Discipline Filters */}
+          <div className="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800 shrink-0">
+            <button
+              onClick={() => setSelectedFilter("all")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                selectedFilter === "all"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              All Matches
+            </button>
+            <button
+              onClick={() => setSelectedFilter("chess")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${
+                selectedFilter === "chess"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <Crown className="w-3.5 h-3.5" />
+              Chess
+            </button>
+            <button
+              onClick={() => setSelectedFilter("connect-four")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${
+                selectedFilter === "connect-four"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              Connect Four
+            </button>
+          </div>
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-950/40 border border-rose-500/20 rounded-xl text-rose-300 text-sm">
+          <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Gamepad2} label="Total Matches" value={games.length.toString()} />
+          <StatCard icon={Gamepad2} label="Matches" value={filteredGames.length.toString()} />
           <StatCard icon={Trophy} label="Victories" value={wins.toString()} valueColor="text-emerald-400" />
           <StatCard icon={XCircle} label="Defeats" value={losses.toString()} valueColor="text-rose-400" />
-          <StatCard icon={TrendingUp} label="Win Ratio" value={`${winRate}%`} valueColor="text-indigo-400" />
+          <StatCard icon={TrendingUp} label="Win Ratio" value={`${winRate}%`} valueColor="text-cyan-400" />
         </div>
 
         <div className="mt-8">
-          <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-4 px-1">
-            Recent Sessions
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4 px-1">
+            Recorded Sessions ({filteredGames.length})
           </h3>
 
-          {games.length > 0 ? (
+          {filteredGames.length > 0 ? (
             <div className="bg-zinc-950/50 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-zinc-900/50 border-b border-white/5">
                       <th className="px-6 py-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                        Module
+                        Discipline
                       </th>
                       <th className="px-6 py-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                         Opponent
@@ -185,10 +232,11 @@ export default function GameHistory() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {games.map((game) => {
+                    {filteredGames.map((game) => {
                       const badge = getResultBadge(game);
                       const BadgeIcon = badge.icon;
-                      const opponent = game.isAgainstAI ? "AI" : "Human";
+                      const opponent = game.isAgainstAI ? "AI Engine" : "Human Player";
+                      const isChess = game.gameType === "chess";
 
                       return (
                         <tr
@@ -197,10 +245,14 @@ export default function GameHistory() {
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:border-indigo-500/30 transition-colors">
-                                <Gamepad2 className="w-4 h-4 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
+                              <div className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+                                isChess
+                                  ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                                  : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+                              }`}>
+                                {isChess ? <Crown className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                               </div>
-                              <span className="text-sm font-medium text-zinc-200 capitalize tracking-tight">
+                              <span className="text-sm font-semibold text-zinc-200 capitalize tracking-tight">
                                 {game.gameType.replace("-", " ")}
                               </span>
                             </div>
@@ -208,9 +260,9 @@ export default function GameHistory() {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2 text-sm text-zinc-400">
                               {game.isAgainstAI ? (
-                                <Bot className="w-4 h-4" />
+                                <Bot className="w-4 h-4 text-indigo-400" />
                               ) : (
-                                <UserIcon className="w-4 h-4" />
+                                <UserIcon className="w-4 h-4 text-zinc-400" />
                               )}
                               {opponent}
                             </div>
@@ -243,7 +295,7 @@ export default function GameHistory() {
               </div>
               <h3 className="text-zinc-300 font-medium mb-1">No Records Found</h3>
               <p className="text-zinc-600 text-sm max-w-sm">
-                Finish a Connect Four match and it will appear here automatically.
+                Complete a match in this discipline and your recorded outcomes will appear here.
               </p>
             </div>
           )}
@@ -273,7 +325,7 @@ function StatCard({
         <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">
           {label}
         </p>
-        <p className={`text-2xl font-semibold tracking-tight ${valueColor}`}>{value}</p>
+        <p className={`text-2xl font-bold tracking-tight ${valueColor}`}>{value}</p>
       </div>
     </div>
   );

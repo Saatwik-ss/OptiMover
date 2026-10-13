@@ -13,6 +13,13 @@ export interface ConnectFourGame {
     isAgainstAI: boolean;
     gameState: any;
     engine: Connect4Engine;
+    options?: any;
+    timeControl: number;
+    player1Time: number;
+    player2Time: number;
+    lastTurnTimestamp?: number;
+    isTimerActive: boolean;
+    timerInterval?: NodeJS.Timeout;
 }
 export declare function setupConnectFourSocket(io: Server, aiClient: AIServiceClient, prisma: PrismaClient): void;
 //# sourceMappingURL=ConnectFourSocket.d.ts.map

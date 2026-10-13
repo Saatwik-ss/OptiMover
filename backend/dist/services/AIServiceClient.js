@@ -36,6 +36,21 @@ class AIServiceClient {
         }
     }
     /**
+     * Get AI's move for Chess
+     */
+    async getChessMove(fen, difficulty = 3) {
+        try {
+            const response = await this.client.post("/api/games/chess/move", {
+                fen,
+                difficulty,
+            });
+            return response.data;
+        }
+        catch (error) {
+            throw this.handleError(error, "Failed to get AI chess move");
+        }
+    }
+    /**
      * Analyze a board position
      */
     async analyzePosition(board, perspective = 1) {

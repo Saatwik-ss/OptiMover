@@ -89,18 +89,16 @@ export default function Navbar() {
           {/* Right side */}
           <div className="flex items-center gap-4">
             
-            {/* Connection status */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/50 border border-white/5">
-              <div className="relative flex h-2 w-2">
-                {isConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                  isConnected ? "bg-emerald-500" : "bg-rose-500"
-                }`}></span>
+            {/* Connection status with wifi bars indicator */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/60">
+              <div className="flex items-end gap-0.5 h-3">
+                <span className={`w-0.5 h-1.5 rounded-xs ${isConnected ? "bg-emerald-500" : "bg-red-500"}`} />
+                <span className={`w-0.5 h-2.5 rounded-xs ${isConnected ? "bg-emerald-500" : "bg-red-500"}`} />
+                <span className={`w-0.5 h-3 rounded-xs ${isConnected ? "bg-emerald-500" : "bg-zinc-700"}`} />
+                <span className={`w-0.5 h-3.5 rounded-xs ${isConnected ? "bg-emerald-500" : "bg-zinc-700"}`} />
               </div>
-              <span className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
-                {isConnected ? "Connected" : "Offline"}
+              <span className="text-xs font-medium tracking-wide text-zinc-300">
+                {isConnected ? "Online" : "Disconnected"}
               </span>
             </div>
 

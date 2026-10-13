@@ -4,6 +4,7 @@ import { WifiOff } from "lucide-react";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import ConnectFourGame from "./pages/ConnectFourGame";
+import ChessGame from "./pages/ChessGame";
 import GameHistory from "./pages/GameHistory";
 import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/authContext";
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/game/:gameId" element={<ConnectFourGame />} />
                 <Route path="/game/connect-four/:gameId" element={<ConnectFourGame />} />
+                <Route path="/game/chess/:gameId" element={<ChessGame />} />
                 <Route path="/history" element={<GameHistory />} />
                 <Route path="/login" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
