@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://optimover-ai.onrender.com/";
+const RAW_API_URL = import.meta.env.VITE_API_URL || "https://optimover-ai.onrender.com";
+const API_URL = RAW_API_URL.replace(/\/+$/, "");
 
 export interface ApiUser {
   id: string;

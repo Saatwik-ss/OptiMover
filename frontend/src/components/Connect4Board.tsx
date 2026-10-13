@@ -5,8 +5,6 @@
 
 import { useState } from "react";
 import classNames from "classnames";
-import {useLocation } from "react-router-dom";
-
 
 export interface Connect4BoardProps {
   board: number[][];
@@ -18,20 +16,9 @@ export interface Connect4BoardProps {
   boardClass?: string;
   opponentLabel?: string;
   myPlayerNumber: 1 | 2;
-  myColorClass?: string;
-  opponentColorClass?: string;
-  isVsAI?: boolean;
-  isHost?: boolean;
-  options?: any;
 }
 
 const COLS = 7;
-interface GameLocationState {
-  initialState?: { board: number[][]; currentPlayer?: number };
-  isVsAI?: boolean;
-  isHost?: boolean;
-  options?: any;
-}
 
 export default function Connect4Board({
   board,
@@ -42,33 +29,21 @@ export default function Connect4Board({
   opponentPieceClass = "bg-red-500",
   boardClass = "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30",
   opponentLabel = "AI",
+  myPlayerNumber,
 }: Connect4BoardProps) {
   const [highlightColumn, setHighlightColumn] = useState<number | null>(null);
   const canPlay = !disabled && !isAIThinking;
-  const location = useLocation();
-  const gameState = (location.state as GameLocationState | null) ?? {};
-  const options = gameState.options ?? null;
-  const isVsAI = gameState.isVsAI ?? true;
-  const isHost = gameState.isHost ?? true;
-  const [myPlayerNumber] = useState<1 | 2>(isVsAI || isHost ? 1 : 2);
 
-  const player1Class = playerPieceClass;
-  const player2Class = opponentPieceClass;
-  const hostColorClass =
-    options?.playerColor === "red"
-      ? "bg-red-500"
-      : "bg-yellow-400";
+  // In board matrix: 1 = player1 (host), 2 = player2 (guest/AI)
+  const pieceColorForNumber = (pNum: number) => {
+    if (pNum === 1) return playerPieceClass;
+    if (pNum === 2) return opponentPieceClass;
+    return "";
+  };
 
-  const guestColorClass =
-    options?.opponentColor === "red"
-      ? "bg-red-500"
-      : "bg-yellow-400";
-  const myColorClass =
-    myPlayerNumber === 1 ? hostColorClass : guestColorClass;
+  const myPieceColor = myPlayerNumber === 1 ? playerPieceClass : opponentPieceClass;
+  const oppPieceColor = myPlayerNumber === 1 ? opponentPieceClass : playerPieceClass;
 
-  const opponentColorClass =
-    myPlayerNumber === 1 ? guestColorClass : hostColorClass;
-  const colorshow = myColorClass;
   const handleColumnClick = (col: number) => {
     if (!canPlay) return;
 
@@ -82,10 +57,10 @@ export default function Connect4Board({
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-lg mx-auto">
-      <p className="text-sm text-zinc-400 text-center">
-        Click a column below to drop your{" "}
-        <span className="inline-block w-3 h-3 rounded-full bg-yellow-400 align-middle" />{" "}
-        piece. Get four in a row to win.
+      <p className="text-sm text-zinc-400 text-center flex items-center justify-center gap-1.5 flex-wrap">
+        <span>Click a column below to drop your</span>
+        <span className={`inline-block w-3.5 h-3.5 rounded-full ${myPieceColor} shadow-sm align-middle`} />
+        <span>piece. Get four in a row to win.</span>
       </p>
 
       {/* Column drop buttons */}
@@ -150,11 +125,8 @@ export default function Connect4Board({
                 {piece !== 0 && (
                   <div
                     className={classNames(
-                      "w-[88%] h-[88%] rounded-full shadow-lg",
-                      {
-                        [player1Class + " shadow-yellow-400/40"]: piece === 1,
-                        [player2Class + " shadow-red-500/40"]: piece === 2,
-                      }
+                      "w-[88%] h-[88%] rounded-full shadow-lg transition-transform",
+                      pieceColorForNumber(piece)
                     )}
                   />
                 )}
@@ -165,16 +137,16 @@ export default function Connect4Board({
       </div>
 
       {/* Legend */}
-        <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
-          <span className="flex items-center gap-2">
-            <span className={`w-4 h-4 rounded-full ${colorshow}`} />
-            You
-          </span>
-          <span className="flex items-center gap-2">
-            <span className={`w-4 h-4 rounded-full ${opponentColorClass}`} />
-            {opponentLabel}
-          </span>
-        </div>
+      <div className="flex items-center justify-center gap-6 text-sm text-zinc-400">
+        <span className="flex items-center gap-2">
+          <span className={`w-4 h-4 rounded-full shadow-sm ${myPieceColor}`} />
+          You
+        </span>
+        <span className="flex items-center gap-2">
+          <span className={`w-4 h-4 rounded-full shadow-sm ${oppPieceColor}`} />
+          {opponentLabel}
+        </span>
+      </div>
 
       {isAIThinking && (
         <div className="flex items-center gap-2 text-blue-400">

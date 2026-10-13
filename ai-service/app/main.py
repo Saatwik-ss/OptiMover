@@ -56,11 +56,15 @@ async def lifespan(app: FastAPI):
     app_state.c4_model.to(app_state.device)
     app_state.c4_model.eval()
     
+    app.state.c4_model = app_state.c4_model
+    app.state.device = app_state.device
+
     yield
     
     # Shutdown
     logger.info("Shutting down AI Service")
     app_state.c4_model = None
+    app.state.c4_model = None
 
 # Create FastAPI app
 app = FastAPI(

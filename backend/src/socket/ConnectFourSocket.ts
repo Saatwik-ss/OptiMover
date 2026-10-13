@@ -16,6 +16,7 @@ export interface ConnectFourGame {
   isAgainstAI: boolean;
   gameState: any;
   engine: Connect4Engine;
+  options?: any;
 }
 
 // In-memory storage for active games

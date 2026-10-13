@@ -164,25 +164,19 @@ export default function ConnectFourGame() {
     }
   };
 
-  const hostColorClass =
-    options?.playerColor === "red"
-      ? "bg-red-500"
-      : "bg-yellow-400";
-
-  const guestColorClass =
+  // Player 1 is host, Player 2 is opponent (AI or guest)
+  const player1ColorClass =
+    options?.playerColor === "red" ? "bg-red-500" : "bg-yellow-400";
+  const player2ColorClass =
     options?.opponentColor === "red"
       ? "bg-red-500"
-      : "bg-yellow-400";
+      : options?.opponentColor === "yellow"
+        ? "bg-yellow-400"
+        : player1ColorClass === "bg-red-500"
+          ? "bg-yellow-400"
+          : "bg-red-500";
 
-  const myColorClass =
-    myPlayerNumber === 1 ? hostColorClass : guestColorClass;
-
-  const opponentColorClass =
-    myPlayerNumber === 1 ? guestColorClass : hostColorClass;
-  const colorshow = myColorClass;
-  // Apply options-based classes
-  const playerPieceClass = options?.playerColor === "red" ? "bg-red-500" : options?.playerColor === "yellow" ? "bg-yellow-400" : myColorClass;
-  const opponentPieceClass = options?.opponentColor === "red" ? "bg-red-500" : options?.opponentColor === "yellow" ? "bg-yellow-400" : opponentColorClass;
+  const myColorClass = myPlayerNumber === 1 ? player1ColorClass : player2ColorClass;
   const boardClass = options?.boardColor ?? "bg-gradient-to-b from-blue-600 to-blue-800 border border-blue-400/30";
 
   return (
@@ -239,12 +233,10 @@ export default function ConnectFourGame() {
           <div>
             <p className="text-slate-400 text-sm">Your Color</p>
             <div className="flex justify-center">
-              <div className={`w-6 h-6 rounded-full shadow-lg ${colorshow}`} />
+              <div className={`w-6 h-6 rounded-full shadow-lg ${myColorClass}`} />
             </div>
           </div>
         </div>
-
-
 
         {winner && (
           <div className="text-center pt-4 border-t border-slate-700">
@@ -259,8 +251,8 @@ export default function ConnectFourGame() {
           onColumnClick={handleColumnClick}
           disabled={!canPlay}
           isAIThinking={isVsAI && isAIThinking}
-          playerPieceClass={playerPieceClass}
-          opponentPieceClass={opponentPieceClass}
+          playerPieceClass={player1ColorClass}
+          opponentPieceClass={player2ColorClass}
           boardClass={boardClass}
           myPlayerNumber={myPlayerNumber}
           opponentLabel={isVsAI ? "AI" : "Opponent"}

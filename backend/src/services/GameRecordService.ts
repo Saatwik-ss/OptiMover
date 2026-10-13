@@ -2,7 +2,6 @@
  * Persists finished games and updates per-user statistics.
  */
 import { PrismaClient } from "@prisma/client";
-import { prisma } from "..";
 
 const savedGameIds = new Set<string>();
 

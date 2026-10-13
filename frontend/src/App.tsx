@@ -8,8 +8,9 @@ import GameHistory from "./pages/GameHistory";
 import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/authContext";
 
-const API_URL =
+const RAW_API_URL =
   import.meta.env.VITE_API_URL || "https://optimover-ai.onrender.com";
+const API_URL = RAW_API_URL.replace(/\/+$/, "");
 
 export default function App() {
   const { isConnected } = useSocket();
