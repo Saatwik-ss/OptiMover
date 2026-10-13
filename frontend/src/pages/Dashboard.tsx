@@ -408,7 +408,6 @@ export default function Dashboard() {
               </div>
 
               <p className="text-zinc-400 text-sm leading-relaxed mb-6">
-                Play standard chess with 3D White and Black pieces, customizable boards, and AI difficulty levels from 600 to 2000+ ELO.
               </p>
 
               <div className="flex flex-wrap gap-3">
