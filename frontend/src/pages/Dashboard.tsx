@@ -398,12 +398,10 @@ export default function Dashboard() {
             {/* 1. Chess Module Card */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 transition-colors hover:border-zinc-700">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-xl flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-blue-400" />
-                </div>
+
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-tight">Chess</h2>
-                  <p className="text-xs text-zinc-400">Tactical 3D board game</p>
+                  <p className="text-xs text-zinc-400"></p>
                 </div>
               </div>
 
@@ -467,12 +465,10 @@ export default function Dashboard() {
             {/* 2. Connect Four Module Card */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 transition-colors hover:border-zinc-700">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-xl flex items-center justify-center">
-                  <Target className="w-5 h-5 text-blue-400" />
-                </div>
+
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-tight">Connect Four</h2>
-                  <p className="text-xs text-zinc-400">Classic 4-in-a-row strategy</p>
+
                 </div>
               </div>
 
